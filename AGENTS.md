@@ -15,8 +15,22 @@ duplicate it here.
 
 - Python is conda at `/shared/results/common/kargin/tck_miniconda3/bin/python3`
   (3.12.8). TF 2.21 / Keras 3.13 / torch 2.10 are already installed.
-- **CPU only** — no GPU was visible. Full training runs are slow; budget for it
-  and don't kick one off without asking.
+- **The interactive shell is CPU only.** GPU training runs via Slurm on the
+  cluster (`dgxa100`/`rtx4090_batch` partitions) — see
+  `train_unfrozen_aug.slurm` for a template. A CPU-only run is slow; budget
+  for it and don't kick one off without asking.
+- **GPU Slurm jobs need two env vars TF won't complain about missing.**
+  Without both, training either silently runs on CPU or crashes outright —
+  see `CHANGELOG.md` (2026-08-23, "GPU training setup") for the full
+  diagnosis. `train_unfrozen_aug.slurm` already sets these; copy it rather
+  than rediscovering:
+  - `LD_LIBRARY_PATH` must include the pip `nvidia-*-cu12` packages' `lib/`
+    dirs, or TF can't dlopen CUDA/cuDNN and *silently* falls back to CPU (no
+    error, no crash — check `nvidia-smi` on the node if a GPU job feels CPU-slow).
+  - `PATH` must include `nvidia/cuda_nvcc/bin` (from
+    `nvidia-cuda-nvcc-cu12`, install if missing) so cuDNN's conv autotuner can
+    find `ptxas`. Missing it crashes with `Autotuner could not compile any
+    configs for HLO: ...cudnn-conv...`.
 - Prefix TF commands with `TF_CPP_MIN_LOG_LEVEL=3` to cut the log noise.
 - Git repo as of 2026-08-23 (single initial commit, branch `main`). History
   before that date doesn't exist — the repo went from data-only to working
@@ -46,11 +60,17 @@ These are documented at length in `README.md`; the short version:
   accuracy and 6° destroys it entirely, even though rotating a clock does not
   change the time it shows. Every image in the dataset is upright.
 - Consequently **geometric test-time augmentation makes things worse**, measured.
-  Don't reach for it. Rotation augmentation during *training* is still untested
-  and is the most promising lead.
-- The `11-10` class is the single biggest error source (29 of 62 dataset-wide
-  errors), and the model misreads 22.5% of its own *training* images for it.
-  The labels are correct. See `CHANGELOG.md` for the full diagnosis.
+  Don't reach for it.
+- The `11-10` class was the single biggest error source in the released model
+  (29 of 62 dataset-wide errors, 22.5% of its own *training* images
+  misread). The labels are correct. See `CHANGELOG.md` for the full diagnosis.
+- **Rotation augmentation during training has now been tried** (2026-08-23,
+  `clock_model_unfrozen_aug.keras`): it fixes the `11-10` failure specifically
+  (doesn't appear in that run's misreads at all) but doesn't raise overall
+  accuracy (98.96% vs baseline 99.38% at the same 20-epoch budget) — the same
+  ~195-min-offset error pattern just lands on different classes instead.
+  Untested: whether more epochs closes the accuracy gap while keeping `11-10`
+  fixed.
 
 ## Working agreements
 
@@ -59,7 +79,7 @@ These are documented at length in `README.md`; the short version:
   preprocessing, or model loading must be checked with
   `python evaluate.py --split test` — expect ~0.9938.
 - Report numbers you actually measured. Say so explicitly when something is
-  untested (e.g. `train.py` has been smoke-tested but never fully run).
+  untested.
 - Keep `README.md` (how to use it) and `AGENTS.md` (how to work on it) distinct.
 
 ## Maintenance

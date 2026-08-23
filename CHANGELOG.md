@@ -2,6 +2,68 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-23 (even later) — rotation-augmentation training experiment
+
+Ran the two open leads from `AGENTS.md`: a full training run (never done
+before) and rotation augmentation (previously untested). Two runs:
+
+### Added
+- `train_unfrozen_aug.slurm` — Slurm job for GPU training on the cluster
+  (`dgxa100` partition). Not committed model artifacts (`clock_model_*.keras`,
+  gitignored) or run logs (`*.log`, `logs/`, also gitignored).
+
+### Findings — CPU frozen-backbone baseline (sanity check)
+- 12 epochs, head-only (backbone frozen), CPU: plateaued at **21.8% test
+  accuracy**. Confirms ImageNet features alone can't do this task — expected,
+  since the released model needed full backbone fine-tuning. Mainly useful as
+  a pipeline smoke test (rotation/zoom/translation augmentation, checkpointing
+  all worked).
+
+### Findings — GPU unfrozen fine-tune with rotation augmentation
+- Same architecture/hyperparameters as the released model, but with
+  `RandomRotation(0.03)` + `RandomZoom(0.05)` + `RandomTranslation(0.05, 0.05)`
+  added to the training pipeline (`train.py` already had this coded but it had
+  never been exercised in a full run).
+- 20 epochs, ~10 min total on an A100 (see GPU setup gotchas below). Best
+  epoch 16, EarlyStopping never triggered.
+- **98.96% top-1 test** (vs baseline's 99.38%), 99.86% top-5 (tied), mean
+  error 2.1 min (vs baseline's 1.1 min). Slightly worse overall — augmentation
+  makes the task harder to fit in the same epoch budget, unsurprising.
+- **But the `11-10` failure mode is gone.** That class was the baseline's
+  single dominant error source (29 of 62 dataset-wide errors, 22.5% of its own
+  training images misread — see the entry below). It does not appear in any
+  of this run's 15 test misreads.
+- **The errors didn't disappear, they moved.** The new misreads still show the
+  same ~195-minute-offset signature as the baseline's dominant error pattern,
+  just redistributed onto different classes (`12:50→4:05`, `1:15→4:30`,
+  `9:10→5:55`, etc.) instead of concentrated on `11-10`.
+- **Net read:** rotation augmentation doesn't look like a strict win over
+  more epochs at this budget, but it does reshape *which* classes are hard,
+  and evidently rebalances the model off `11-10` specifically. Untested:
+  whether more epochs (augmented data needs more to converge) recovers the
+  baseline's overall accuracy while keeping `11-10` fixed.
+
+### Identified — GPU training setup on this cluster
+Two silent-failure gotchas hit back to back when moving `train.py` off CPU
+onto the cluster's GPU nodes (conda env at
+`/shared/results/common/kargin/tck_miniconda3`):
+1. **TF silently trains on CPU with no error** if the pip-installed
+   `nvidia-*-cu12` packages' `.so` files aren't on `LD_LIBRARY_PATH` — it logs
+   `Cannot dlopen some GPU libraries` (suppressed by
+   `TF_CPP_MIN_LOG_LEVEL=3`) and falls back to CPU with no crash. Confirmed via
+   `nvidia-smi` on the allocated node showing 0% util / no process while the
+   job "ran" at CPU-only speed (~2s/step, matching the earlier CPU timing).
+   Fix: `export LD_LIBRARY_PATH=$(for d in .../site-packages/nvidia/*/lib; do
+   echo -n "$d:"; done)` before running.
+2. **`ptxas` was missing entirely** (`nvidia-cuda-nvcc-cu12` wasn't
+   installed), which crashes GPU training outright with `Autotuner could not
+   compile any configs for HLO: ...cudnn-conv...` — cuDNN's conv autotuner
+   needs `ptxas` to JIT-compile and verify candidate kernels; without it every
+   algorithm fails to compile. Fixed by `pip install
+   nvidia-cuda-nvcc-cu12==12.8.*` (matching the existing CUDA 12.8 toolkit)
+   and adding its `bin/` to `PATH`. Both fixes are baked into
+   `train_unfrozen_aug.slurm`.
+
 ## 2026-08-23 (later still) — git init
 
 ### Added

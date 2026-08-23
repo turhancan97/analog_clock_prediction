@@ -74,10 +74,17 @@ These are documented at length in `README.md`; the short version:
 - **Full-dataset (train+valid+test) comparison confirms the errors are
   genuinely more spread out, not just relabeled** — see
   `compare_full_dataset.py`. Baseline: 62 errors, 46.8% in `11-10` alone
-  (28 classes affected). Augmented: 73 errors (slightly more), but no class
-  has more than 3 (4.1% of its errors); spread across 48 classes. So
-  augmentation trades a few extra total errors for removing the one
-  pathological failure mode.
+  (28 classes affected). 20-epoch augmented: 73 errors (slightly more), but no
+  class has more than 3 (4.1% of its errors); spread across 48 classes.
+- **More epochs closes the gap and keeps the fix** (2026-08-23,
+  `clock_model_unfrozen_aug_80ep.keras`, 80-epoch budget,
+  EarlyStopping(patience=5) actually triggered this time at epoch 25, best
+  epoch 20): **99.77% dataset-wide accuracy (33 errors)** — better than both
+  the baseline (99.57%, 62 errors) and the 20-epoch run (99.49%, 73 errors).
+  `11-10` drops from 29/62 baseline errors (46.8%) to 1/33 (3.0%) — nearly but
+  not fully eliminated. No class exceeds 9.1% of total errors (vs baseline's
+  46.8%). This is now the best checkpoint on every axis measured; the
+  20-epoch run was undertrained, not a fundamentally different tradeoff.
 
 ## Working agreements
 
@@ -94,3 +101,15 @@ These are documented at length in `README.md`; the short version:
 Update `CHANGELOG.md` at the end of any session that changes the repo, newest
 first, with the date and what changed. Update this file when you learn
 something a future session would otherwise have to rediscover the hard way.
+
+## GPU Slurm results (checkpoints, gitignored)
+
+| checkpoint | epochs | dataset-wide acc | errors | worst class share |
+|---|---|---|---|---|
+| `time-99.68.h5` (released) | — | 99.57% | 62 | `11-10`, 46.8% |
+| `clock_model_unfrozen_aug.keras` | 20 | 99.49% | 73 | 4.1% (no dominant class) |
+| `clock_model_unfrozen_aug_80ep.keras` | 80 (stopped ep. 25) | **99.77%** | **33** | 9.1% (no dominant class) |
+
+`clock_model_unfrozen_aug_80ep.keras` is the best result so far on every axis
+measured. Not committed (gitignored `*.keras`); regenerate with
+`train_unfrozen_aug_longer.slurm`.

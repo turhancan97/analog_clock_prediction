@@ -12,7 +12,8 @@ import clockmodel as cm
 
 MODELS = {
     "baseline (time-99.68.h5)": None,
-    "unfrozen_aug (clock_model_unfrozen_aug.keras)": "clock_model_unfrozen_aug.keras",
+    "unfrozen_aug 20ep (clock_model_unfrozen_aug.keras)": "clock_model_unfrozen_aug.keras",
+    "unfrozen_aug 80ep (clock_model_unfrozen_aug_80ep.keras)": "clock_model_unfrozen_aug_80ep.keras",
 }
 
 

@@ -2,6 +2,35 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-23 (newest) — longer-epoch rotation-aug run closes the accuracy gap
+
+Follow-up to the 20-epoch run: does a bigger epoch budget let augmented data
+converge to match (or beat) the baseline while keeping the error-spreading
+benefit? Yes.
+
+### Added
+- `train_unfrozen_aug_longer.slurm` — same job as `train_unfrozen_aug.slurm`
+  but `--epochs 80` (EarlyStopping(patience=5) caps wasted time), output to
+  `clock_model_unfrozen_aug_80ep.keras`.
+- `compare_full_dataset.py` now compares all three checkpoints.
+
+### Findings
+- Job 475932, ~7 min on an A100. EarlyStopping triggered at epoch 25, best
+  epoch 20, val_accuracy 0.995.
+- **Test split**: 99.58% top-1 (vs baseline 99.38%, vs 20-epoch run 98.96%),
+  99.86% top-5, mean error 0.7 min (best of all three).
+- **Full dataset (14,400 images)**: **99.77% accuracy, 33 errors** — beats
+  both the baseline (99.57%, 62 errors) and the 20-epoch run (99.49%, 73
+  errors). No class exceeds 9.1% of total errors (vs baseline's 46.8% in
+  `11-10` alone).
+- `11-10` specifically: 29/62 baseline errors (46.8%) -> 1/33 here (3.0%).
+  Nearly eliminated, not fully — one test-split misread (`11:10 -> 7:55`,
+  p=0.734) remains.
+- **Conclusion**: the 20-epoch run was undertrained, not a different
+  accuracy/robustness tradeoff. More epochs gets both higher accuracy and the
+  flattened error distribution. `clock_model_unfrozen_aug_80ep.keras` is now
+  the best checkpoint measured on every axis.
+
 ## 2026-08-23 (latest still) — confirmed time-99.68.h5 provenance
 
 ### Findings

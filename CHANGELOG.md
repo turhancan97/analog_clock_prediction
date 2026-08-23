@@ -2,6 +2,45 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-23 (newest of all still) — EDA + Grad-CAM attention notebook
+
+### Added
+- `notebooks/eda_attention.ipynb` — dataset EDA (class balance, sample image
+  grid) plus Grad-CAM attention visualization on the default checkpoint.
+  Target layer: `top_activation` (last EfficientNetB3 conv feature map,
+  5x5x1536 before global pooling). Generated via `nbformat`, then executed
+  end-to-end with `jupyter nbconvert --execute` to catch errors and populate
+  outputs before committing — reproduces 99.58% test accuracy / 6 misreads,
+  matching every prior measurement.
+- Added `matplotlib==3.10.8` and `notebook==7.5.6` to `requirements.txt`
+  (already installed in the conda env; now pinned for reproducibility).
+
+### Findings
+- **Attention tracks the hands, not a fixed frame region.** On correct,
+  confident predictions, the Grad-CAM heatmap concentrates tightly at the
+  hand-tip vertex, consistent with the earlier rotation-invariance finding
+  (predictions exactly unchanged under 90/180/270 degree rotation).
+- **The blank-dial dataset defect (see the 33-error diagnosis above) produces
+  visibly diffuse, unfocused attention** — no coherent hot region, spread
+  across most of the dial — matching its near-random 0.06-0.09 confidence.
+  Directly visualized `train/12-30/36.jpg` (blank) against
+  `train/9-25/36.jpg` (normal, same file index, different class) for
+  contrast.
+- **The mislabeled `valid/8-50/36.jpg` image gets attention on the actual
+  drawn hands, near 12:05** — not on empty space near where 8:50's hands
+  *should* be. Independent visual confirmation, on top of the earlier eyeball
+  inspection, that this is a mislabel/mis-render and not a model error.
+- **The dataset's visual diversity is much wider than earlier samples
+  suggested.** The error diagnosis and provenance checks happened to sample
+  plain yellow-dial, tick-marks-only images (all coincidentally file index
+  `36` or `0`). Random test-split samples in this notebook show ornate
+  numerals, photographic-style clock faces, illustrated backgrounds, and even
+  mirrored/reversed digit rendering. Worth knowing before drawing conclusions
+  about "the" dataset's appearance from a handful of spot-checked files.
+- Mean Grad-CAM heatmap over 60 random correct predictions, in a shared
+  (non-hand-centered) frame, peaks near the image center — expected, since
+  the clock center is where hands originate regardless of the time shown.
+
 ## 2026-08-23 (newest of all) — repo reorganized: scripts/, models/
 
 ### Changed

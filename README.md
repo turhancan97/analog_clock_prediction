@@ -19,6 +19,8 @@ scripts/
   train.py                retrain the same architecture from ImageNet weights
   compare_full_dataset.py compare checkpoints' per-class errors over the full dataset
   *.slurm                 GPU training jobs for this cluster
+notebooks/
+  eda_attention.ipynb     dataset EDA + Grad-CAM: where the model looks
 ```
 
 `clockmodel.load_model()` defaults to `models/clock_model_unfrozen_aug_80ep.keras`
@@ -78,3 +80,15 @@ Always take labels from `clockmodel.class_names()`.
 ~0.6% of images misread, and most of them are the same one: class `11-10` is
 confidently (p≈0.9) read as `7:55` in both valid and test. Spot-checking the
 images confirms they really are 11:10 — it's a model weakness, not a bad label.
+
+## Where the model looks
+
+`notebooks/eda_attention.ipynb` — dataset EDA (class balance, sample images
+across the surprisingly wide variety of dial art styles) plus Grad-CAM
+visualizations of the model's attention. Confirms visually, not just
+statistically: attention concentrates tightly on the hand-tip region for
+correct and confident predictions; the blank-dial dataset defect (see
+`DATASET.md`) produces diffuse, unfocused attention with low confidence; the
+mislabeled `valid/8-50/36.jpg` image gets attention on the *actual drawn
+hands* (near 12:05), not the folder's claimed 8:50 — visual confirmation of
+the mislabel theory from the error diagnosis in `CHANGELOG.md`.

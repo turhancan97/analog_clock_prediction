@@ -17,9 +17,10 @@ is missing. Gitignored, so it won't exist on a fresh clone until you run
 Repo layout: `scripts/` holds every Python entry point (`train.py`,
 `evaluate.py`, `predict.py`, `compare_full_dataset.py`) and the Slurm job
 files; `src/clockmodel.py` is the shared library they all import; `models/`
-holds locally trained checkpoints (gitignored). Run everything from the repo
-root — `python scripts/<name>.py ...` — the scripts resolve `src/` and
-`models/` relative to their own file location, not the cwd.
+holds locally trained checkpoints (gitignored); `notebooks/` holds
+`eda_attention.ipynb` (dataset EDA + Grad-CAM attention visualization). Run
+everything from the repo root — `python scripts/<name>.py ...` — the scripts
+resolve `src/` and `models/` relative to their own file location, not the cwd.
 
 Layout, usage, and model details live in `README.md` — read it too, don't
 duplicate it here.
@@ -104,6 +105,21 @@ These are documented at length in `README.md`; the short version:
   directory. Real error count is 13, true accuracy closer to **99.91%**. See
   `DATASET.md` caveats and `CHANGELOG.md` for the diagnosis. Don't re-attribute
   these to the model in future comparisons.
+- **Grad-CAM (`notebooks/eda_attention.ipynb`, 2026-08-23) visually confirms
+  both of the above.** On correct/confident predictions, attention
+  concentrates tightly on the hand-tip region, not a fixed part of the frame
+  (consistent with the rotation-invariance finding above). On the blank-dial
+  defect it's diffuse with no coherent focal point (matches its near-random
+  0.09 confidence). On the mislabeled `valid/8-50/36.jpg` image, attention
+  locks onto the *actual drawn hands* near 12:05 — not the folder's claimed
+  8:50 — independent visual evidence for the mislabel theory.
+- **The dataset is far more visually diverse than the blank-defect samples
+  suggested.** Random test-split samples in the notebook show wildly varied
+  dial art (ornate numerals, photographic clock faces, mirrored/reversed
+  text, illustrated backgrounds), not the plain yellow-dial-with-tick-marks
+  look of the specific images inspected during the error diagnosis. Don't
+  generalize dial appearance from a small visual sample — the diversity is
+  real and the model handles it.
 
 ## Working agreements
 

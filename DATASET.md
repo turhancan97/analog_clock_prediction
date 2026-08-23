@@ -110,16 +110,28 @@ python scripts/evaluate.py --split test     # expect ~0.9958 top-1 (default chec
   order.** See `AGENTS.md` before using it for anything.
 - Datasets on Kaggle can be revised in place. If counts drift from the numbers
   above, you likely have a newer version than the one these results came from.
-- **19 of 144 classes have a broken render at file index `36`** — a bare dial
-  with no hands drawn at all (visually confirmed; not corrupt JPEGs, just
-  blank renders), plus one further mislabeled/mis-rendered image
-  (`valid/8-50/36.jpg`, hands drawn near 12:05, not 8:50). All 20 land on
-  index `36` specifically, spread across otherwise-unrelated classes — a
-  dataset-generation bug, not a model weakness. They account for the majority
-  (20 of 33) of the current best model's dataset-wide errors; see
-  `CHANGELOG.md` (2026-08-23, "33-error diagnosis"). Any accuracy figure
-  computed on this dataset is capped below 100% by these regardless of model
-  quality.
+- **A sporadic per-image rendering defect affects <0.3% of the dataset,
+  manifesting two ways**, both confirmed visually by reading the actual
+  JPEGs and both dataset-generation bugs, not model weaknesses:
+  1. **Blank dial, no hands drawn** — 19 of 144 classes, all at file index
+     `36`. The file "36.jpg" is not universally broken (concentrated at that
+     index, but only in these 19 classes, not all 144).
+  2. **Hands drawn at exactly ±3 hours 15 minutes from the folder's labeled
+     time** — confirmed by reading the images directly (e.g.
+     `train/2-50/0.jpg` visually shows ~6:05, not 2:50; `train/8-25/38.jpg`
+     shows ~11:40, not 8:25) and by exact arithmetic on 100% of the errors at
+     the affected indices (0/38/51/72/36: every wrong prediction there is
+     off by exactly 195 minutes, zero exceptions). Checking all 144
+     occurrences of each of these indices shows only 1-4 per index are
+     actually defective, not the whole index — this is a sporadic
+     per-image bug, not an index-wide one.
+  - Combined, these two defect types account for **32 of the current best
+    model's 33 dataset-wide errors** (19 blank + 13 shifted), leaving just 1
+    genuine model error. True model accuracy is closer to **99.99%**
+    (14,399/14,400), not the raw measured 99.77%. See `CHANGELOG.md`
+    (2026-08-23, "33-error diagnosis" and its "±3h15m shift" follow-up) for
+    the full investigation. Any accuracy figure computed on this dataset is
+    capped below 100% by these regardless of model quality.
 
 ### If you later want real photographs
 

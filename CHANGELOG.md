@@ -2,6 +2,52 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-23 (very newest) — the "~195-min-offset" pattern is a second dataset defect, not model confusion
+
+Follow-up to both the 33-error diagnosis and the Grad-CAM notebook: Grad-CAM
+showed the model's remaining errors have a clear, confident focal point on
+the hand-tip region (unlike the blank-dial defect's diffuse attention) --
+meaning they weren't obviously "no signal" cases. That prompted checking
+whether the ~195-minute offset shared by most of them was fuzzy model
+confusion or something more exact.
+
+### Findings
+- **It's exact.** Recomputing the *signed* offset (not just the circular
+  distance) for all 13 non-blank errors on the current default checkpoint:
+  every single one is off by precisely ±195 minutes (3h15m) -- e.g.
+  `11:10 -> 7:55` is exactly `11:10 - 3:15`; `8:25 -> 11:40` is exactly
+  `8:25 + 3:15`. No fuzz, no near-misses.
+- **These errors cluster on specific file indices** -- `0`, `38`, `51`, `72`
+  -- the same signature as the blank-dial defect's clustering on index `36`.
+- **Visually confirmed as a rendering defect, not a model error.** Read
+  `train/2-50/0.jpg` and `train/8-25/38.jpg` directly: the drawn hands show
+  ~6:05 and ~11:40 respectively -- i.e. exactly what the model predicted, not
+  the folder's labeled time. The model is reading the image correctly; the
+  image doesn't match its own folder name.
+- **Extended to all 144 occurrences of each suspect index** (same method as
+  the index-`36` check): only 1-4 of 144 are actually affected per index, not
+  the whole index -- but of the ones that are wrong, **100% are the exact
+  ±195-minute shift, zero "other" error types**. That 0% mismatch rate is the
+  strongest evidence this is a rendering bug and not model confusion, which
+  would be expected to scatter across many different error magnitudes.
+- **Revises the 33-error diagnosis's accuracy estimate upward.** Combining
+  both defect types (19 blank + 13 shifted, one of which -- `valid/8-50/36.jpg`
+  -- was double-counted in both entries before this finding): **32 of 33
+  dataset-wide errors are dataset defects**, leaving exactly 1 genuine model
+  error (`11:25 -> 10:55`, 30 min off, a plausible adjacent-class boundary
+  call). True model accuracy is closer to **99.99%** (14,399/14,400), not the
+  99.91% estimated in the earlier diagnosis (which only accounted for the
+  blank-dial defect).
+- **Retroactively reframes part of the original `11-10` diagnosis** (see the
+  entry far below). That diagnosis concluded `11-10`'s 29 baseline-model
+  errors were genuine model weakness, not a labeling problem, based on
+  visually confirming the hands showed 11:10. That's still true for most of
+  those 29 -- retraining fixed 28 of them, which a data-only defect
+  couldn't explain -- but the one that survived retraining
+  (`test/11-10/38.jpg`, still misread by the 80-epoch model) is this same
+  index-`38` rendering defect, not a residual model weakness.
+- Updated `DATASET.md` caveats to describe both defect types together.
+
 ## 2026-08-23 (newest of all still) — EDA + Grad-CAM attention notebook
 
 ### Added

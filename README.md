@@ -75,11 +75,21 @@ column of `clocks.csv`. Two wrong-looking alternatives:
 
 Always take labels from `clockmodel.class_names()`.
 
-### Known failure mode
+### Known failure mode (released model, `time-99.68.h5`)
 
 ~0.6% of images misread, and most of them are the same one: class `11-10` is
 confidently (p≈0.9) read as `7:55` in both valid and test. Spot-checking the
-images confirms they really are 11:10 — it's a model weakness, not a bad label.
+images confirms they really are 11:10 — mostly a model weakness, not a bad
+label (retraining fixes all but one instance of it — see `DATASET.md`, which
+turned out to be a rendering defect, not the model).
+
+### Known failure mode (default model, `clock_model_unfrozen_aug_80ep.keras`)
+
+Of this model's 33 dataset-wide errors, only **1 is a genuine model
+error** (`11:25 -> 10:55`, 30 min off). The other 32 are two dataset
+rendering defects — a blank dial with no hands, and hands drawn at exactly
+±3h15m from the folder's labeled time — see `DATASET.md` caveats. Real
+accuracy is closer to **99.99%**.
 
 ## Where the model looks
 
@@ -87,8 +97,9 @@ images confirms they really are 11:10 — it's a model weakness, not a bad label
 across the surprisingly wide variety of dial art styles) plus Grad-CAM
 visualizations of the model's attention. Confirms visually, not just
 statistically: attention concentrates tightly on the hand-tip region for
-correct and confident predictions; the blank-dial dataset defect (see
-`DATASET.md`) produces diffuse, unfocused attention with low confidence; the
-mislabeled `valid/8-50/36.jpg` image gets attention on the *actual drawn
-hands* (near 12:05), not the folder's claimed 8:50 — visual confirmation of
-the mislabel theory from the error diagnosis in `CHANGELOG.md`.
+correct and confident predictions, including on the rendering-defect images —
+which is what raised the question of whether those were really "model
+confusion" and led to finding the ±3h15m-shift defect above. The blank-dial
+defect produces diffuse, unfocused attention with low confidence instead; on
+`valid/8-50/36.jpg`, attention locks onto the *actual drawn hands* (near
+12:05), not the folder's claimed 8:50.

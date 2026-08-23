@@ -99,20 +99,30 @@ These are documented at length in `README.md`; the short version:
   not fully eliminated. No class exceeds 9.1% of total errors (vs baseline's
   46.8%). This is now the best checkpoint on every axis measured; the
   20-epoch run was undertrained, not a fundamentally different tradeoff.
-- **20 of that 80-epoch run's 33 dataset-wide errors are dataset defects, not
-  model errors** — 19 blank-dial renders (no hands drawn) plus 1
-  mislabeled/mis-rendered image, all at file index `36` in their class
-  directory. Real error count is 13, true accuracy closer to **99.91%**. See
-  `DATASET.md` caveats and `CHANGELOG.md` for the diagnosis. Don't re-attribute
-  these to the model in future comparisons.
+- **32 of that 80-epoch run's 33 dataset-wide errors are dataset defects, not
+  model errors — two distinct rendering bugs, both confirmed visually.**
+  19 are a blank dial with no hands drawn (index `36` in 19/144 classes).
+  13 are hands drawn at **exactly ±3h15m (195 min) from the folder's labeled
+  time** — clustered on indices `0`, `38`, `51`, `72`, `36`; every error at
+  those indices is exactly this shift with zero exceptions, and reading the
+  actual images confirms the drawn hands show the *predicted* time, not the
+  label. Only 1-4 of 144 occurrences per index are actually affected — it's a
+  sporadic per-image bug, not an index-wide one. Only **1 genuine model
+  error** remains (`11:25 -> 10:55`, 30 min off). Real accuracy is closer to
+  **99.99%** (14,399/14,400), not the raw measured 99.77%. See `DATASET.md`
+  caveats and `CHANGELOG.md` for both diagnoses. Don't re-attribute these to
+  the model in future comparisons.
 - **Grad-CAM (`notebooks/eda_attention.ipynb`, 2026-08-23) visually confirms
-  both of the above.** On correct/confident predictions, attention
-  concentrates tightly on the hand-tip region, not a fixed part of the frame
-  (consistent with the rotation-invariance finding above). On the blank-dial
-  defect it's diffuse with no coherent focal point (matches its near-random
-  0.09 confidence). On the mislabeled `valid/8-50/36.jpg` image, attention
-  locks onto the *actual drawn hands* near 12:05 — not the folder's claimed
-  8:50 — independent visual evidence for the mislabel theory.
+  the above and is what prompted finding the second defect.** On
+  correct/confident predictions, attention concentrates tightly on the
+  hand-tip region, not a fixed part of the frame (consistent with the
+  rotation-invariance finding above) — including on the ±3h15m-shift defect
+  images, which is what raised the question of whether those were really
+  "model confusion" (a diffuse-attention case like the blank-dial defect)
+  or something else. On the blank-dial defect, attention is diffuse with no
+  coherent focal point (matches its near-random 0.09 confidence). On
+  `valid/8-50/36.jpg` (one of the shift-defect images), attention locks onto
+  the *actual drawn hands* near 12:05 — not the folder's claimed 8:50.
 - **The dataset is far more visually diverse than the blank-defect samples
   suggested.** Random test-split samples in the notebook show wildly varied
   dial art (ornate numerals, photographic clock faces, mirrored/reversed
@@ -145,7 +155,7 @@ something a future session would otherwise have to rediscover the hard way.
 |---|---|---|---|---|
 | `time-99.68.h5` (released) | — | 99.57% | 62 | `11-10`, 46.8% |
 | `clock_model_unfrozen_aug.keras` | 20 | 99.49% | 73 | 4.1% (no dominant class) |
-| `clock_model_unfrozen_aug_80ep.keras` | 80 (stopped ep. 25) | **99.77%** | **33** | 9.1% (no dominant class) |
+| `clock_model_unfrozen_aug_80ep.keras` | 80 (stopped ep. 25) | **99.77%** (33 raw errors; **~99.99%**, 1 real error, once the 32 dataset-defect errors are excluded — see above) | **33** | 9.1% (no dominant class) |
 
 `clock_model_unfrozen_aug_80ep.keras` is the best result so far on every axis
 measured. Lives in `models/`, not committed (gitignored `*.keras`); regenerate

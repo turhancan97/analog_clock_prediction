@@ -18,7 +18,9 @@ duplicate it here.
 - **CPU only** — no GPU was visible. Full training runs are slow; budget for it
   and don't kick one off without asking.
 - Prefix TF commands with `TF_CPP_MIN_LOG_LEVEL=3` to cut the log noise.
-- Not a git repo (as of 2026-08-23). Don't assume git history exists.
+- Git repo as of 2026-08-23 (single initial commit, branch `main`). History
+  before that date doesn't exist — the repo went from data-only to working
+  code in one uncommitted session; `CHANGELOG.md` is the record of that.
 - **`data/` is a symlink** to `/shared/sets/datasets/vision/analog-clock/data`.
   Plain `find data ...` silently returns nothing — always `find -L data ...`.
   Provenance and re-download steps are in `DATASET.md`.

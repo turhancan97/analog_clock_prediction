@@ -2,6 +2,16 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-23 (later still) — git init
+
+### Added
+- `requirements.txt` — pinned to what's actually installed in the conda env
+  (tensorflow 2.21.0, keras 3.13.2, numpy 2.2.6, pillow 11.3.0, pandas 2.2.3).
+  `torch` is installed in the env but unused by any code here, so it's
+  excluded.
+- Initialized git (`main` branch), single root commit covering everything
+  built this session. No history before this point.
+
 ## 2026-08-23 (later) — dataset provenance
 
 ### Added

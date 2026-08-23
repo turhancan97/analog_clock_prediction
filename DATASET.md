@@ -110,6 +110,16 @@ python evaluate.py --split test     # expect ~0.9938 top-1
   order.** See `AGENTS.md` before using it for anything.
 - Datasets on Kaggle can be revised in place. If counts drift from the numbers
   above, you likely have a newer version than the one these results came from.
+- **19 of 144 classes have a broken render at file index `36`** — a bare dial
+  with no hands drawn at all (visually confirmed; not corrupt JPEGs, just
+  blank renders), plus one further mislabeled/mis-rendered image
+  (`valid/8-50/36.jpg`, hands drawn near 12:05, not 8:50). All 20 land on
+  index `36` specifically, spread across otherwise-unrelated classes — a
+  dataset-generation bug, not a model weakness. They account for the majority
+  (20 of 33) of the current best model's dataset-wide errors; see
+  `CHANGELOG.md` (2026-08-23, "33-error diagnosis"). Any accuracy figure
+  computed on this dataset is capped below 100% by these regardless of model
+  quality.
 
 ### If you later want real photographs
 

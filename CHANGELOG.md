@@ -2,6 +2,41 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-23 (latest) — 33-error diagnosis: most are dataset defects, not model errors
+
+Same methodology as the original `11-10` diagnosis, applied to the new
+default checkpoint's remaining 33 full-dataset errors.
+
+### Findings
+- **18 of 33 errors share one file: `36.jpg`** in their class directory
+  (`12-30/36.jpg`, `2-05/36.jpg`, `9-05/36.jpg`, `10-05/36.jpg`, etc.), all
+  predicted with near-random confidence (p ≈ 0.06-0.10, vs 1/144 ≈ 0.007
+  chance level).
+- **Visually confirmed blank**: these images are a bare dial with tick marks
+  and no hands drawn at all. Checked several directly (`Read` tool on the
+  `.jpg`); a same-index image from a different class (`9-25/36.jpg`) has
+  normal hands, so this isn't an index-wide bug — it's specific renders.
+- **Extended the check to all 144 `36.jpg` files** (one per class): 124/144
+  correctly classified, 20/144 wrong. Of the 20: **19 are the same blank-dial
+  defect**; the 20th (`valid/8-50/36.jpg`) has visible hands but they're drawn
+  near 12:05, not 8:50 — a mislabel or mis-render, confirmed visually. Not
+  corrupt JPEGs (`file`/`md5sum` show valid, distinct 224×224 images) — a
+  dataset-generation defect, present before any of this session's retraining.
+- **The remaining 13 non-`36.jpg` errors are the real signal**: 12 of them
+  share the exact same ~195-minute-offset pattern as the original `11-10`
+  diagnosis (e.g. `8:25→11:40`, `5:05→8:20`, `11:10→7:55`, `3:35→12:20`) —
+  this hand-relationship confusion persists after retraining, just far more
+  rarely and spread across many classes instead of concentrated in one. The
+  13th (`11:25→10:55`, 30 min off, p=0.535) is a minor adjacent-class
+  boundary call.
+- **Corrected accuracy read**: excluding the 20 dataset-defect errors, the
+  model's real error count on the full dataset is 13, not 33 — true accuracy
+  closer to **99.91%**, not the measured 99.77%. The measured figure
+  understates the model; it's capped by broken source images no model could
+  read correctly.
+- Documented the defect in `DATASET.md` so future accuracy comparisons
+  account for it rather than re-diagnosing from scratch.
+
 ## 2026-08-23 (newest still) — default checkpoint switched
 
 ### Changed

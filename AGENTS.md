@@ -91,6 +91,12 @@ These are documented at length in `README.md`; the short version:
   not fully eliminated. No class exceeds 9.1% of total errors (vs baseline's
   46.8%). This is now the best checkpoint on every axis measured; the
   20-epoch run was undertrained, not a fundamentally different tradeoff.
+- **20 of that 80-epoch run's 33 dataset-wide errors are dataset defects, not
+  model errors** — 19 blank-dial renders (no hands drawn) plus 1
+  mislabeled/mis-rendered image, all at file index `36` in their class
+  directory. Real error count is 13, true accuracy closer to **99.91%**. See
+  `DATASET.md` caveats and `CHANGELOG.md` for the diagnosis. Don't re-attribute
+  these to the model in future comparisons.
 
 ## Working agreements
 

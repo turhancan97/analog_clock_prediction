@@ -2,6 +2,25 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-23 (latest) — full-dataset per-class error comparison
+
+### Added
+- `compare_full_dataset.py` — runs both checkpoints over train+valid+test
+  combined (14,400 images, same scope as the original `11-10` diagnosis) and
+  reports per-true-class error counts, not just the 1440-image test split
+  `evaluate.py` covers.
+
+### Findings
+- **Baseline** (`time-99.68.h5`): 62 errors, 46.8% concentrated in `11-10`
+  alone (29/62); errors touch 28 distinct classes.
+- **Rotation-aug** (`clock_model_unfrozen_aug.keras`): 73 errors (slightly
+  more total) but no single class has more than 3 (4.1% of all errors);
+  errors touch 48 distinct classes.
+- Confirms the earlier test-split finding at full scale: augmentation doesn't
+  reduce total errors, but it genuinely dissolves the one pathological
+  failure mode into a near-uniform scatter rather than just relocating a
+  second concentration elsewhere.
+
 ## 2026-08-23 (even later) — rotation-augmentation training experiment
 
 Ran the two open leads from `AGENTS.md`: a full training run (never done

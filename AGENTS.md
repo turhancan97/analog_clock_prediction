@@ -71,6 +71,13 @@ These are documented at length in `README.md`; the short version:
   ~195-min-offset error pattern just lands on different classes instead.
   Untested: whether more epochs closes the accuracy gap while keeping `11-10`
   fixed.
+- **Full-dataset (train+valid+test) comparison confirms the errors are
+  genuinely more spread out, not just relabeled** — see
+  `compare_full_dataset.py`. Baseline: 62 errors, 46.8% in `11-10` alone
+  (28 classes affected). Augmented: 73 errors (slightly more), but no class
+  has more than 3 (4.1% of its errors); spread across 48 classes. So
+  augmentation trades a few extra total errors for removing the one
+  pathological failure mode.
 
 ## Working agreements
 

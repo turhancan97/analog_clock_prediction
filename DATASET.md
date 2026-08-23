@@ -97,7 +97,7 @@ The real end-to-end check is the pretrained model, which should reproduce its
 published accuracy on an intact copy:
 
 ```bash
-python evaluate.py --split test     # expect ~0.9938 top-1
+python scripts/evaluate.py --split test     # expect ~0.9958 top-1 (default checkpoint)
 ```
 
 ## Caveats

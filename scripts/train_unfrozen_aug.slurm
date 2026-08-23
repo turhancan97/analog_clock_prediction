@@ -6,7 +6,7 @@
 #SBATCH --mem=64G
 #SBATCH --ntasks=1
 #SBATCH --exclude=c22,c11,c15
-#SBATCH --job-name=clock_train_longer
+#SBATCH --job-name=clock_train
 #SBATCH --output=logs/%x_%j.log
 #SBATCH --time=06:00:00
 
@@ -23,11 +23,6 @@ export LD_LIBRARY_PATH=$(for d in "$PYROOT"/nvidia/*/lib; do echo -n "$d:"; done
 # could not compile any configs".
 export PATH="$PYROOT/nvidia/cuda_nvcc/bin:$PATH"
 
-# Same run as train_unfrozen_aug.slurm but with a much larger epoch budget.
-# The 20-epoch run (best epoch 16, EarlyStopping never triggered) landed at
-# 98.96% vs baseline's 99.38% -- augmented data plausibly needs more epochs
-# to converge. EarlyStopping(patience=5) in train.py caps the wasted time if
-# it plateaus early instead.
-$PY train.py --epochs 80 --out clock_model_unfrozen_aug_80ep.keras
+$PY scripts/train.py --epochs 20 --out models/clock_model_unfrozen_aug.keras
 
-$PY evaluate.py --split test --model clock_model_unfrozen_aug_80ep.keras
+$PY scripts/evaluate.py --split test --model models/clock_model_unfrozen_aug.keras

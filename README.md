@@ -10,25 +10,29 @@ data/
   train/ valid/ test/   144 class dirs each ("3-10", "11-45"); 11520 / 1440 / 1440 JPGs
   clocks.csv            manifest: class index, filepaths, labels, data set
   time-99.68.h5         released pretrained EfficientNetB3, Keras 2.8, Aug 2022
-clock_model_unfrozen_aug_80ep.keras   locally trained, better than the above (see below); gitignored
+models/                 locally trained checkpoints; gitignored
+  clock_model_unfrozen_aug_80ep.keras   default (see below), better than time-99.68.h5
 src/clockmodel.py       class labels, model loading, preprocessing
-predict.py              read the time off given image(s)
-evaluate.py             accuracy + minutes-off error on a split
-train.py                retrain the same architecture from ImageNet weights
+scripts/
+  predict.py             read the time off given image(s)
+  evaluate.py             accuracy + minutes-off error on a split
+  train.py                retrain the same architecture from ImageNet weights
+  compare_full_dataset.py compare checkpoints' per-class errors over the full dataset
+  *.slurm                 GPU training jobs for this cluster
 ```
 
-`clockmodel.load_model()` defaults to `clock_model_unfrozen_aug_80ep.keras` if
-present in the repo root, falling back to `data/time-99.68.h5` otherwise (e.g.
-on a fresh clone before you've trained your own). Pass `--model` to any script
-to override.
+`clockmodel.load_model()` defaults to `models/clock_model_unfrozen_aug_80ep.keras`
+if present, falling back to `data/time-99.68.h5` otherwise (e.g. on a fresh
+clone before you've trained your own). Pass `--model` to any script to
+override. All commands below assume you're running from the repo root.
 
 ## Usage
 
 ```bash
-python predict.py data/test/3-25/29.jpg --top 3
-python evaluate.py --split test
-python train.py --epochs 20 --out clock_model.keras
-python evaluate.py --split test --model clock_model.keras
+python scripts/predict.py data/test/3-25/29.jpg --top 3
+python scripts/evaluate.py --split test
+python scripts/train.py --epochs 20 --out models/clock_model.keras
+python scripts/evaluate.py --split test --model models/clock_model.keras
 ```
 
 ## The pretrained model

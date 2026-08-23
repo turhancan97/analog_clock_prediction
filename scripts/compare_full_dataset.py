@@ -4,22 +4,22 @@
 instead of the 1440-image test split evaluate.py normally covers."""
 import sys
 from collections import Counter
+from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, "src")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 import clockmodel as cm
 
 MODELS = {
-    "baseline (time-99.68.h5)": None,
-    "unfrozen_aug 20ep (clock_model_unfrozen_aug.keras)": "clock_model_unfrozen_aug.keras",
-    "unfrozen_aug 80ep (clock_model_unfrozen_aug_80ep.keras)": "clock_model_unfrozen_aug_80ep.keras",
+    "baseline (time-99.68.h5)": cm.DATA_DIR / "time-99.68.h5",
+    "unfrozen_aug 80ep (clock_model_unfrozen_aug_80ep.keras)": cm.MODELS_DIR / "clock_model_unfrozen_aug_80ep.keras",
 }
 
 
 def evaluate_full(model_path):
     names = cm.class_names()
-    model = cm.load_model(model_path) if model_path else cm.load_model()
+    model = cm.load_model(model_path)
 
     y_true_all, y_pred_all = [], []
     for split in ("train", "valid", "test"):

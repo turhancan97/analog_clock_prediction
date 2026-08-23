@@ -2,10 +2,11 @@
 """Evaluate the clock-reading model on a data split."""
 import argparse
 import sys
+from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, "src")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 import clockmodel as cm
 
 

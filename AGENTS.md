@@ -8,11 +8,18 @@ Analog clock reading: a 224×224 clock-face image → one of 144 classes (every
 5-minute increment on a 12-hour dial). `data/time-99.68.h5` is the released
 pretrained EfficientNetB3 checkpoint from Aug 2022 (Keras 2.8), 99.38% test
 accuracy. `clockmodel.load_model()` now **defaults to
-`clock_model_unfrozen_aug_80ep.keras`** in the repo root instead (locally
-trained, 2026-08-23, 99.77% dataset-wide vs the released model's 99.57% — see
-the table under Maintenance) and falls back to `time-99.68.h5` only if that
-file is missing. Gitignored, so it won't exist on a fresh clone until you run
-`train_unfrozen_aug_longer.slurm`.
+`models/clock_model_unfrozen_aug_80ep.keras`** instead (locally trained,
+2026-08-23, 99.77% dataset-wide vs the released model's 99.57% — see the
+table under Maintenance) and falls back to `time-99.68.h5` only if that file
+is missing. Gitignored, so it won't exist on a fresh clone until you run
+`scripts/train_unfrozen_aug_longer.slurm`.
+
+Repo layout: `scripts/` holds every Python entry point (`train.py`,
+`evaluate.py`, `predict.py`, `compare_full_dataset.py`) and the Slurm job
+files; `src/clockmodel.py` is the shared library they all import; `models/`
+holds locally trained checkpoints (gitignored). Run everything from the repo
+root — `python scripts/<name>.py ...` — the scripts resolve `src/` and
+`models/` relative to their own file location, not the cwd.
 
 Layout, usage, and model details live in `README.md` — read it too, don't
 duplicate it here.
@@ -23,13 +30,13 @@ duplicate it here.
   (3.12.8). TF 2.21 / Keras 3.13 / torch 2.10 are already installed.
 - **The interactive shell is CPU only.** GPU training runs via Slurm on the
   cluster (`dgxa100`/`rtx4090_batch` partitions) — see
-  `train_unfrozen_aug.slurm` for a template. A CPU-only run is slow; budget
-  for it and don't kick one off without asking.
+  `scripts/train_unfrozen_aug.slurm` for a template. A CPU-only run is slow;
+  budget for it and don't kick one off without asking.
 - **GPU Slurm jobs need two env vars TF won't complain about missing.**
   Without both, training either silently runs on CPU or crashes outright —
   see `CHANGELOG.md` (2026-08-23, "GPU training setup") for the full
-  diagnosis. `train_unfrozen_aug.slurm` already sets these; copy it rather
-  than rediscovering:
+  diagnosis. `scripts/train_unfrozen_aug.slurm` already sets these; copy it
+  rather than rediscovering:
   - `LD_LIBRARY_PATH` must include the pip `nvidia-*-cu12` packages' `lib/`
     dirs, or TF can't dlopen CUDA/cuDNN and *silently* falls back to CPU (no
     error, no crash — check `nvidia-smi` on the node if a GPU job feels CPU-slow).
@@ -103,8 +110,9 @@ These are documented at length in `README.md`; the short version:
 - **Verify, don't assume.** Both class-ordering bugs above produced plausible
   code that ran fine and was badly wrong. Any change touching labels,
   preprocessing, or model loading must be checked with
-  `python evaluate.py --split test` — expect ~0.9958 against the default
-  checkpoint (~0.9938 if you pass `--model data/time-99.68.h5` explicitly).
+  `python scripts/evaluate.py --split test` — expect ~0.9958 against the
+  default checkpoint (~0.9938 if you pass `--model data/time-99.68.h5`
+  explicitly).
 - Report numbers you actually measured. Say so explicitly when something is
   untested.
 - Keep `README.md` (how to use it) and `AGENTS.md` (how to work on it) distinct.
@@ -124,5 +132,5 @@ something a future session would otherwise have to rediscover the hard way.
 | `clock_model_unfrozen_aug_80ep.keras` | 80 (stopped ep. 25) | **99.77%** | **33** | 9.1% (no dominant class) |
 
 `clock_model_unfrozen_aug_80ep.keras` is the best result so far on every axis
-measured. Not committed (gitignored `*.keras`); regenerate with
-`train_unfrozen_aug_longer.slurm`.
+measured. Lives in `models/`, not committed (gitignored `*.keras`); regenerate
+with `scripts/train_unfrozen_aug_longer.slurm`.

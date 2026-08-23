@@ -2,6 +2,46 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-23 (newest of all) — repo reorganized: scripts/, models/
+
+### Changed
+- All Python entry points (`train.py`, `evaluate.py`, `predict.py`,
+  `compare_full_dataset.py`) and both `.slurm` job files moved into
+  `scripts/`. `src/clockmodel.py` (the shared library) stays where it is.
+- Local checkpoints now live in `models/` (gitignored) instead of the repo
+  root: `clockmodel.MODELS_DIR`, `clockmodel.DEFAULT_MODEL` updated to match;
+  `train.py --out` now defaults to `models/clock_model.keras` and creates the
+  directory if missing. Both `.slurm` scripts updated to the new
+  `scripts/`/`models/` paths.
+- Each moved script now resolves `src/` relative to its own file location
+  (`Path(__file__).resolve().parent.parent / "src"`) instead of assuming cwd
+  — was previously a bare `sys.path.insert(0, "src")`, which only worked if
+  invoked from the repo root. Run from the repo root either way
+  (`python scripts/train.py ...`); it's just more robust now.
+- Deleted the two superseded checkpoints that were sitting in the repo root
+  (`clock_model_frozen_aug.keras`, `clock_model_unfrozen_aug.keras` — the
+  20-epoch run, superseded by the 80-epoch one). Only
+  `models/clock_model_unfrozen_aug_80ep.keras` remains.
+- `compare_full_dataset.py`'s `MODELS` dict dropped the now-deleted 20-epoch
+  checkpoint; compares baseline vs the current default only.
+- Verified after the move: `scripts/evaluate.py --split test` and
+  `scripts/predict.py` both reproduce prior results unchanged (99.58% top-1,
+  same 6 test misreads).
+- Updated `README.md` and `AGENTS.md` layout sections and every command
+  example to the new paths.
+
+### Fixed
+- **`compare_full_dataset.py`'s baseline entry silently loaded the wrong
+  model.** It called `cm.load_model()` with no args to mean "the baseline,"
+  which worked back when the default was `data/time-99.68.h5` — but the
+  earlier "default checkpoint switched" change made `load_model()`'s default
+  the 80-epoch checkpoint instead, so both entries in the comparison silently
+  loaded the *same* model (caught because the re-run after this move showed
+  identical 33-error results for both rows instead of baseline's expected 62).
+  Fixed by passing `cm.DATA_DIR / "time-99.68.h5"` explicitly instead of
+  relying on the default. Re-verified: baseline 62 errors / 80-epoch 33
+  errors, matching every prior measurement.
+
 ## 2026-08-23 (latest) — 33-error diagnosis: most are dataset defects, not model errors
 
 Same methodology as the original `11-10` diagnosis, applied to the new

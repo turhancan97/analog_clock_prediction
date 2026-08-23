@@ -6,8 +6,9 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 REPO_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = REPO_DIR / "data"
+MODELS_DIR = REPO_DIR / "models"
 IMG_SIZE = (150, 150)          # what the released model expects
 NUM_CLASSES = 144
 
@@ -15,7 +16,7 @@ NUM_CLASSES = 144
 # fine-tune, 99.77% on the full dataset vs the released time-99.68.h5's
 # 99.57% -- see CHANGELOG.md. Gitignored like all *.keras artifacts; falls
 # back to the released checkpoint if it isn't present (e.g. fresh clone).
-DEFAULT_MODEL = REPO_DIR / "clock_model_unfrozen_aug_80ep.keras"
+DEFAULT_MODEL = MODELS_DIR / "clock_model_unfrozen_aug_80ep.keras"
 if not DEFAULT_MODEL.exists():
     DEFAULT_MODEL = DATA_DIR / "time-99.68.h5"
 

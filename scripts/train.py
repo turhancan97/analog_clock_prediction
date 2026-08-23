@@ -2,11 +2,12 @@
 """Train an EfficientNetB3 clock reader, matching the released model's setup."""
 import argparse
 import sys
+from pathlib import Path
 
 import keras
 import tensorflow as tf
 
-sys.path.insert(0, "src")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 import clockmodel as cm
 
 
@@ -40,10 +41,11 @@ def main():
     ap.add_argument("--batch-size", type=int, default=32)
     ap.add_argument("--learning-rate", type=float, default=1e-3)
     ap.add_argument("--dropout", type=float, default=0.3)
-    ap.add_argument("--out", default="clock_model.keras")
+    ap.add_argument("--out", default=str(cm.MODELS_DIR / "clock_model.keras"))
     ap.add_argument("--freeze-backbone", action="store_true",
                     help="train only the head (much faster, lower ceiling)")
     args = ap.parse_args()
+    Path(args.out).resolve().parent.mkdir(parents=True, exist_ok=True)
 
     train_ds = cm.make_dataset("train", args.batch_size, shuffle=True)
     valid_ds = cm.make_dataset("valid", args.batch_size)

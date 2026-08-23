@@ -26,9 +26,12 @@ images, and the 80/10/10 per-class split all corroborate.
 The bundled `time-99.68.h5` also follows that author's convention of shipping a
 trained checkpoint named `<topic>-<accuracy>.h5`, and its architecture
 (EfficientNetB3 → GlobalMaxPool → BatchNorm → Dense(256) → Dropout → Dense,
-Adamax @ 1e-3) is his standard notebook recipe. **Not independently verified** —
-Kaggle's file-listing API needs authentication, so I could not confirm the `.h5`
-is part of the dataset rather than added later.
+Adamax @ 1e-3) is his standard notebook recipe. **Confirmed 2026-08-23**: an
+authenticated `kaggle datasets download -f time-99.68.h5` on this dataset slug
+returns the file directly (`2022-08-18` creation date, same day as
+`clocks.csv`), and it is byte-identical to the local copy — 135,837,376 bytes,
+md5 `6bb35a8914cd9d329c036edfcd575879`. It ships with the dataset, not added
+later.
 
 ## Where it lives right now
 

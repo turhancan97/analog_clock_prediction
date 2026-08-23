@@ -2,6 +2,16 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-23 (latest still) — confirmed time-99.68.h5 provenance
+
+### Findings
+- Previously inferred, now confirmed: `kaggle datasets download -d
+  gpiosenka/time-image-datasetclassification -f time-99.68.h5` (authenticated,
+  `KAGGLE_API_TOKEN` env var picked up automatically by the CLI) returns the
+  checkpoint directly, dated 2022-08-18 like `clocks.csv`.
+- It is **byte-identical** to the local copy: 135,837,376 bytes, md5
+  `6bb35a8914cd9d329c036edfcd575879` on both. Ships with the dataset.
+
 ## 2026-08-23 (latest) — full-dataset per-class error comparison
 
 ### Added

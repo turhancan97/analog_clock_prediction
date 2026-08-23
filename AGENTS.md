@@ -5,8 +5,14 @@ Guidance for AI agents working in this repo. Read this before touching code.
 ## What this project is
 
 Analog clock reading: a 224×224 clock-face image → one of 144 classes (every
-5-minute increment on a 12-hour dial). `data/time-99.68.h5` is a pretrained
-EfficientNetB3 checkpoint from Aug 2022 (Keras 2.8) that scores 99.38% on test.
+5-minute increment on a 12-hour dial). `data/time-99.68.h5` is the released
+pretrained EfficientNetB3 checkpoint from Aug 2022 (Keras 2.8), 99.38% test
+accuracy. `clockmodel.load_model()` now **defaults to
+`clock_model_unfrozen_aug_80ep.keras`** in the repo root instead (locally
+trained, 2026-08-23, 99.77% dataset-wide vs the released model's 99.57% — see
+the table under Maintenance) and falls back to `time-99.68.h5` only if that
+file is missing. Gitignored, so it won't exist on a fresh clone until you run
+`train_unfrozen_aug_longer.slurm`.
 
 Layout, usage, and model details live in `README.md` — read it too, don't
 duplicate it here.
@@ -91,7 +97,8 @@ These are documented at length in `README.md`; the short version:
 - **Verify, don't assume.** Both class-ordering bugs above produced plausible
   code that ran fine and was badly wrong. Any change touching labels,
   preprocessing, or model loading must be checked with
-  `python evaluate.py --split test` — expect ~0.9938.
+  `python evaluate.py --split test` — expect ~0.9958 against the default
+  checkpoint (~0.9938 if you pass `--model data/time-99.68.h5` explicitly).
 - Report numbers you actually measured. Say so explicitly when something is
   untested.
 - Keep `README.md` (how to use it) and `AGENTS.md` (how to work on it) distinct.

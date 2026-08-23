@@ -2,6 +2,20 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-23 (newest still) — default checkpoint switched
+
+### Changed
+- `clockmodel.load_model()` now defaults to
+  `clock_model_unfrozen_aug_80ep.keras` in the repo root (99.77% dataset-wide,
+  see the entry below) instead of `data/time-99.68.h5` (99.57%). Falls back to
+  `time-99.68.h5` automatically if the `.keras` file isn't present, e.g. on a
+  fresh clone before running `train_unfrozen_aug_longer.slurm`. `--model` on
+  `predict.py`/`evaluate.py` still overrides either way.
+- Verified via `evaluate.py --split test` with no `--model` flag: now loads
+  the new default and reproduces 99.58%.
+- Updated `README.md` (layout, "pretrained model" section) and `AGENTS.md`
+  (opening paragraph, verification-accuracy note) accordingly.
+
 ## 2026-08-23 (newest) — longer-epoch rotation-aug run closes the accuracy gap
 
 Follow-up to the 20-epoch run: does a bigger epoch budget let augmented data

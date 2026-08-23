@@ -9,12 +9,18 @@ Reads the time off a 224×224 analog clock face image, as one of 144 classes
 data/
   train/ valid/ test/   144 class dirs each ("3-10", "11-45"); 11520 / 1440 / 1440 JPGs
   clocks.csv            manifest: class index, filepaths, labels, data set
-  time-99.68.h5         pretrained EfficientNetB3, Keras 2.8, Aug 2022
+  time-99.68.h5         released pretrained EfficientNetB3, Keras 2.8, Aug 2022
+clock_model_unfrozen_aug_80ep.keras   locally trained, better than the above (see below); gitignored
 src/clockmodel.py       class labels, model loading, preprocessing
 predict.py              read the time off given image(s)
 evaluate.py             accuracy + minutes-off error on a split
 train.py                retrain the same architecture from ImageNet weights
 ```
+
+`clockmodel.load_model()` defaults to `clock_model_unfrozen_aug_80ep.keras` if
+present in the repo root, falling back to `data/time-99.68.h5` otherwise (e.g.
+on a fresh clone before you've trained your own). Pass `--model` to any script
+to override.
 
 ## Usage
 
@@ -29,14 +35,21 @@ python evaluate.py --split test --model clock_model.keras
 
 EfficientNetB3 → GlobalMaxPool → BatchNorm → Dense(256, relu) → Dropout →
 Dense(144, softmax). 11,220,159 params, Adamax @ 1e-3,
-categorical crossentropy.
+categorical crossentropy. Both the released checkpoint and the locally
+retrained ones below use this same architecture.
 
 **Input is 150×150, not 224×224** — the images are 224², so everything gets
 resized down. Rescaling (1/255) and Normalization are layers *inside* the model,
 so feed it raw float `[0, 255]`; do not scale beforehand.
 
-Measured here: **99.38%** top-1 on both test and valid (99.86% top-5, mean error
-1.1 min). Consistent with the `99.68` in the filename.
+`time-99.68.h5` (released): **99.38%** top-1 on both test and valid (99.86%
+top-5, mean error 1.1 min). Consistent with the `99.68` in the filename.
+
+`clock_model_unfrozen_aug_80ep.keras` (default, locally trained with rotation
+augmentation): **99.58%** top-1 test (99.86% top-5, mean error 0.7 min); on
+the full 14,400-image dataset, 99.77% vs the released model's 99.57%, with
+errors spread across many classes rather than concentrated in one. See
+`CHANGELOG.md` (2026-08-23 entries) for the full experiment.
 
 ### Two gotchas
 

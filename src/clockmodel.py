@@ -7,8 +7,17 @@ import pandas as pd
 import tensorflow as tf
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+REPO_DIR = Path(__file__).resolve().parent.parent
 IMG_SIZE = (150, 150)          # what the released model expects
 NUM_CLASSES = 144
+
+# Best checkpoint measured so far (2026-08-23): rotation-aug + 80-epoch
+# fine-tune, 99.77% on the full dataset vs the released time-99.68.h5's
+# 99.57% -- see CHANGELOG.md. Gitignored like all *.keras artifacts; falls
+# back to the released checkpoint if it isn't present (e.g. fresh clone).
+DEFAULT_MODEL = REPO_DIR / "clock_model_unfrozen_aug_80ep.keras"
+if not DEFAULT_MODEL.exists():
+    DEFAULT_MODEL = DATA_DIR / "time-99.68.h5"
 
 
 class _CompatDepthwiseConv2D(keras.layers.DepthwiseConv2D):
@@ -34,7 +43,7 @@ def class_names(data_dir=DATA_DIR):
     return [l.replace("_", "-") for l in sorted(labels)]
 
 
-def load_model(path=DATA_DIR / "time-99.68.h5", compile=False):
+def load_model(path=DEFAULT_MODEL, compile=False):
     return keras.saving.load_model(
         path, compile=compile,
         custom_objects={"DepthwiseConv2D": _CompatDepthwiseConv2D},

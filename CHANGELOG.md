@@ -2,6 +2,32 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-24 (newest) — automated tests + CI
+
+### Added
+- `tests/test_clockmodel.py` (pytest) — two tiers. Pure-logic tests (label
+  formatting, prediction decoding, the Keras 2.8→3 `DepthwiseConv2D` compat
+  patch) always run. Data/model-backed tests need `data/` and/or the default
+  checkpoint and skip automatically otherwise:
+  `test_class_names_order_is_alphabetical_over_underscore_labels` and
+  `test_class_names_does_not_match_csv_class_index_order` lock down
+  `clockmodel.class_names()`'s ordering against both known-wrong
+  alternatives (the class-ordering trap in `AGENTS.md` #1);
+  `test_default_checkpoint_test_accuracy_regression` asserts test-split
+  top-1 accuracy stays >= 0.99 against the default checkpoint.
+- `.github/workflows/ci.yml` — runs the pytest suite on every push/PR to
+  `main`. `data/` and `models/` are both gitignored (symlink to shared
+  storage / local training output) and not present on the runner, so CI
+  only ever exercises the pure-logic tier; the data/model-backed tests are
+  for local verification per `AGENTS.md`'s "verify, don't assume" guidance.
+- `pytest==9.0.2` added to `requirements.txt`.
+- `README.md` gained a "Testing" section; the corresponding "Automated
+  tests" / "CI" future-work items are removed now that both exist.
+
+### Verified
+- `python -m pytest tests/ -v`: 11 passed locally (data and default
+  checkpoint both present).
+
 ## 2026-08-24 — README figures + expanded future work
 
 ### Added

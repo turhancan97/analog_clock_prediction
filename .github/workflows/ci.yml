@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: Run tests
+        # data/ (gitignored, shared-storage symlink) and models/ (gitignored,
+        # trained checkpoints) aren't available on the runner. Data/model-backed
+        # tests in tests/test_clockmodel.py skip themselves automatically; the
+        # rest (label formatting, prediction decoding, the Keras 2.8->3
+        # DepthwiseConv2D compat patch) run for real.
+        run: python -m pytest tests/ -v

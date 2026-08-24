@@ -112,16 +112,27 @@ defect produces diffuse, unfocused attention with low confidence instead; on
 
 ![Grad-CAM attention: correct prediction vs. blank-dial defect vs. shift defect](docs/images/gradcam_comparison.png)
 
+## Testing
+
+```bash
+python -m pytest tests/ -v
+```
+
+`tests/test_clockmodel.py` has two tiers. Pure-logic tests (label formatting,
+prediction decoding, the Keras 2.8→3 `DepthwiseConv2D` compat patch) always
+run. Data/model-backed tests — locking down `clockmodel.class_names()`'s
+ordering against both known-wrong alternatives, and a test-accuracy
+regression threshold against the default checkpoint — need `data/` and/or a
+trained checkpoint and skip automatically when those aren't present (e.g. in
+CI, which has neither since both are gitignored).
+
+CI (`.github/workflows/ci.yml`) runs this suite on every push/PR to `main`,
+so it only ever exercises the pure-logic tier; the data/model-backed tests
+are for local verification, per `AGENTS.md`'s "verify, don't assume"
+guidance.
+
 ## Future work
 
-- **Automated tests.** There's no test suite — `evaluate.py --split test` is
-  run by hand to catch regressions (per `AGENTS.md`'s "verify, don't assume").
-  A regression test asserting accuracy against a fixed threshold, plus a unit
-  test locking down `clockmodel.class_names()`'s ordering (the class-ordering
-  trap has silently cost ~33% accuracy twice already), would catch both
-  automatically.
-- **CI.** No `.github/workflows` — nothing runs those tests, or even a lint/
-  import smoke test, on push. Blocked on the first item existing.
 - **Test on real (non-synthetic) clock photos** — a new axis of difficulty,
   not more tuning on this dataset. Everything measured so far is on
   synthetic, upright, centered, exact-5-minute-mark renders; `DATASET.md`

@@ -2,6 +2,24 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-24 — README figures + expanded future work
+
+### Added
+- `scripts/generate_readme_figures.py` — generates the 4 PNGs now embedded in
+  `README.md`, run once against the default checkpoint and committed as
+  static files under `docs/images/`: `sample_predictions.png` (grid of test
+  images with true/predicted labels), `gradcam_comparison.png` (Grad-CAM on a
+  correct prediction vs. both dataset defects), `dataset_defects.png` (normal
+  render vs. blank-dial vs. ±3h15m-shift defect, side by side), and
+  `checkpoint_accuracy.png` (bar chart of the three checkpoints' full-dataset
+  accuracy from the `AGENTS.md` comparison table). Re-run and recommit if the
+  default checkpoint changes.
+- Expanded `README.md`'s "Future work" section: real (non-synthetic) photo
+  testing, a public model-card/writeup, confidence-based dataset-defect
+  auto-flagging, characterizing the rotation-brittleness cliff, confidence
+  calibration, and model size/deployment — on top of the existing automated
+  tests / CI items.
+
 ## 2026-08-23 (very newest) — the "~195-min-offset" pattern is a second dataset defect, not model confusion
 
 Follow-up to both the 33-error diagnosis and the Grad-CAM notebook: Grad-CAM

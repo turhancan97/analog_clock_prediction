@@ -16,7 +16,8 @@ is missing. Gitignored, so it won't exist on a fresh clone until you run
 
 Repo layout: `scripts/` holds every Python entry point (`train.py`,
 `evaluate.py`, `predict.py`, `compare_full_dataset.py`,
-`generate_readme_figures.py`, `evaluate_real_photos.py`) and the Slurm job
+`generate_readme_figures.py`, `evaluate_real_photos.py`,
+`characterize_rotation_brittleness.py`) and the Slurm job
 files; `src/clockmodel.py` is the shared library they all import; `models/`
 holds locally trained checkpoints (gitignored); `notebooks/` holds
 `eda_attention.ipynb` (dataset EDA + Grad-CAM attention visualization);
@@ -80,6 +81,24 @@ These are documented at length in `README.md`; the short version:
 - It is nonetheless **very brittle to small rotations**: 3° costs ~30 points of
   accuracy and 6° destroys it entirely, even though rotating a clock does not
   change the time it shows. Every image in the dataset is upright.
+- **The brittleness cliff is now fully characterized** (2026-08-24,
+  `scripts/characterize_rotation_brittleness.py`, see `CHANGELOG.md`). The
+  default checkpoint (trained with `RandomRotation(0.03)` = **±10.8°**, not
+  the ~5.4° previously written here — that was a units error, corrected now)
+  has a genuine flat ~99% accuracy plateau matching that range almost
+  exactly, then a sharp cliff into a **0%-accuracy dead zone from ~30° to
+  ~60°** (both directions), recovering to ~99% only at exactly ±90°. The
+  released checkpoint (no rotation augmentation) has no plateau at all, just
+  a narrow smoothly-decaying peak. **Conclusion: training-time rotation
+  augmentation doesn't teach general rotation robustness — it widens the
+  safe range to match the literal augmentation range and no further.**
+  Confidence stays high (0.4–0.99) throughout the dead zone — the model
+  doesn't know it's wrong — and Grad-CAM stays sharply hand-focused even on
+  wrong dead-zone predictions (unlike the diffuse attention on the
+  blank-dial dataset defect): this is confident misreading of a correctly
+  located hand, not lost localization. Real-photo confidence (0.205, see
+  below) is markedly lower than anything in this sweep, suggesting the
+  real-photo failure isn't pure rotation confusion.
 - Consequently **geometric test-time augmentation makes things worse**, measured.
   Don't reach for it.
 - The `11-10` class was the single biggest error source in the released model

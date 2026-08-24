@@ -2,6 +2,83 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-24 (newest of all) — characterizing the rotation-brittleness cliff
+
+Follow-up to both the original rotation-brittleness finding (an ad-hoc,
+uncommitted check: 0 deg -> 100%, 3 deg -> ~69%, 6 deg -> 0%) and the
+real-photo collapse below, which raised the question of how much of that
+failure is rotation-shaped. Two things were unknown: the cliff's actual
+shape (only three points had ever been measured, on the *released*
+checkpoint only), and whether training-time `RandomRotation(0.03)`
+augmentation (used for the current default checkpoint) changes its shape or
+just shifts it.
+
+### Added
+- `scripts/characterize_rotation_brittleness.py` -- sweeps rotation angle
+  (-90 to +90 degrees, finer resolution near 0) over 144 test images (one
+  per class), for both the default and released checkpoints, using
+  `scipy.ndimage.rotate` (edge-extended corners, not black -- avoids
+  confounding "rotation" with "sudden black wedge in frame"). Also renders
+  Grad-CAM at increasing angles for one example.
+- `docs/images/rotation_cliff.png` -- accuracy vs. angle, both checkpoints.
+- `docs/images/rotation_gradcam.png` -- Grad-CAM at 0/3/6/10/20/45 degrees.
+- Added `scipy` to `requirements.txt` (already installed in the conda env).
+
+### Findings
+- **Corrects an earlier error**: `RandomRotation(0.03)` was previously
+  described as "~5.4 degrees" (AGENTS.md, README.md). It's actually
+  **+/-10.8 degrees** -- Keras's `factor` is a fraction of a full turn used
+  as *both* the lower and upper bound, so `0.03` means the layer samples
+  from `[-0.03, 0.03] * 360 deg`, not half that. The measured plateau below
+  confirms this figure is right.
+- **The default checkpoint has a genuine flat plateau, not just a softer
+  peak.** Accuracy stays at ~99% essentially unchanged from -10 deg to
+  +10 deg -- matching the +/-10.8 degree training augmentation range almost
+  exactly -- then collapses sharply: 93.8% at +15 deg, 41.7% at +20 deg,
+  **0% from +30 deg through +60 deg** (a genuine dead zone, not a gradual
+  tail), before jumping back to 99.3% at exactly +90 deg. Symmetric in the
+  negative direction.
+- **The released checkpoint (no rotation augmentation at all) has no
+  plateau** -- a much narrower, smoothly-decaying peak: 95.8% at 2 deg
+  already down to 83.3%/80.6% at 3 deg, ~0% by 15 deg, same dead zone, same
+  recovery at 90 deg. Confirms the earlier three-point estimate (3 deg ->
+  ~69%) was in the right ballpark, roughly the average of the +3/-3 values
+  measured here (80.6%/83.3%) at a different sample.
+- **Training-time rotation augmentation doesn't teach genuine rotation
+  invariance -- it widens the memorized-safe range to match what it saw in
+  training, verbatim.** The plateau's edges align with the augmentation
+  range almost to the degree. This is augmentation working exactly as
+  literally specified, not as a proxy for a more general robustness.
+- **Confident wrongness, not uncertainty, dominates the dead zone.** Mean
+  top-1 confidence stays high (0.44-0.99) throughout the 15-89 degree dead
+  zone for both checkpoints, even at 0% accuracy -- the model doesn't
+  "know" it's off-distribution, it just reads the wrong time with the same
+  confidence it reads the right one. Notably *higher* confidence than the
+  real-photo test below (mean 0.205) -- suggesting the real-photo failure
+  isn't pure rotation-confusion; something about real photos (lighting,
+  perspective, dial style, or the *combination*) pushes the model into a
+  less-confident regime that isolated synthetic rotation alone doesn't
+  reproduce.
+- **Grad-CAM answers "does attention diffuse or drift?" -- neither. It stays
+  locked on the (rotated) hands even as the prediction goes wrong.** At
+  +20 deg and +45 deg (both fully in the dead zone, both wrong and both
+  ~0.78-0.79 confident), attention is exactly as sharp and hand-focused as
+  at 0 deg. This is a different failure signature than the blank-dial
+  dataset defect (diffuse attention, near-random 0.06-0.10 confidence, see
+  the 33-error diagnosis) -- the rotation failure is a confident
+  *misreading* of a correctly-located hand position, not a loss of
+  localization. Consistent with 90/180/270-degree exact invariance: those
+  are the only out-of-distribution orientations with zero interpolation
+  artifacts and exact pixel-grid correspondence between rotated numerals and
+  rotated hands; every other angle introduces interpolation the model
+  never learned to read correctly outside its narrow trained/memorized
+  range.
+- **Practical implication for the real-photo work above:** since
+  augmentation only ever teaches the literal trained range, pushing the
+  real-photo gap further with more rotation augmentation would likely need
+  a much wider augmentation range (well past +/-10.8 degrees) to have any
+  chance of covering real off-axis photography -- not a small tweak.
+
 ## 2026-08-24 (very newest) — real (non-synthetic) clock photos: the model collapses
 
 Follow-up to the rotation-brittleness finding (AGENTS.md: 3° costs ~30

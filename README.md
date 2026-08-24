@@ -127,6 +127,32 @@ rotation-brittleness finding above, not a single fixable bug. See
 
 ![Real-photo predictions: six best and six worst](docs/images/real_photo_predictions.png)
 
+## The rotation-brittleness cliff, characterized
+
+`scripts/characterize_rotation_brittleness.py` sweeps rotation angle
+(-90° to +90°) over 144 test images for both checkpoints. The default
+checkpoint (trained with `RandomRotation(0.03)` = **±10.8°**) has a genuine
+flat ~99% accuracy plateau matching that range almost exactly, then a sharp
+cliff into a **0%-accuracy dead zone from ~30° to ~60°**, recovering to ~99%
+only at exactly ±90°. The released checkpoint (no rotation augmentation) has
+no plateau at all — just a narrow, smoothly-decaying peak around 0°.
+**Training-time rotation augmentation doesn't teach general rotation
+robustness — it widens the safe range to match the literal augmentation
+range and no further.**
+
+![Rotation-brittleness cliff: accuracy vs. angle for both checkpoints](docs/images/rotation_cliff.png)
+
+Confidence stays high (0.4–0.99) throughout the dead zone — the model
+doesn't know it's wrong — and Grad-CAM stays sharply focused on the (rotated)
+hands even on confidently-wrong dead-zone predictions, unlike the diffuse
+attention seen on the blank-dial dataset defect above. This is confident
+*misreading* of a correctly-located hand position, not lost localization —
+consistent with exact invariance only at 90°/180°/270°, the only
+out-of-distribution orientations with zero interpolation artifacts. See
+`CHANGELOG.md` (2026-08-24) for the full diagnosis.
+
+![Grad-CAM at increasing rotation angles: attention stays hand-focused even when wrong](docs/images/rotation_gradcam.png)
+
 ## Testing
 
 ```bash
@@ -170,13 +196,15 @@ guidance.
   confidently-wrong predictions could auto-surface defects like these
   instead of hand-diagnosing per-class each time, and would generalize to
   auditing other synthetic datasets built the same way.
-- **Characterize the rotation-brittleness cliff.** Measured (0°→100%,
-  3°→~69%, 6°→0%) but not explained — why does a model that reads numerals
-  invariant to 90°/180°/270° collapse at 6°? Worth knowing whether the
-  numeral-reading mechanism only generalizes to axis-aligned crops/features
-  or something else is going on, and whether it explains why training's
-  `RandomRotation(0.03)` (≈±5.4°, right at the cliff edge) didn't raise
-  overall accuracy despite fixing `11-10`.
+- **Widen the rotation-augmentation range.** Now that the cliff is
+  characterized (above), the plateau's edges track the literal training
+  augmentation range almost exactly — training with a wider `RandomRotation`
+  factor should, per that finding, extend the plateau rather than just
+  soften it. Untested how wide it can go before hurting upright-image
+  accuracy or blowing up training time/convergence, and whether it would
+  meaningfully close any of the real-photo gap (the real-photo confidence
+  profile looked different from pure rotation confusion, so this may help
+  less than hoped).
 - **Confidence calibration.** All accuracy figures so far are top-1/top-5,
   not calibration — whether p=0.9 actually means ~90% correct. Relevant if
   the confidence score is ever used to decide when to trust a prediction vs.

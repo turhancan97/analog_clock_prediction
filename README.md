@@ -112,6 +112,21 @@ defect produces diffuse, unfocused attention with low confidence instead; on
 
 ![Grad-CAM attention: correct prediction vs. blank-dial defect vs. shift defect](docs/images/gradcam_comparison.png)
 
+## Generalization to real photos: it does not
+
+Every accuracy figure above is on synthetic, upright, centered,
+exact-5-minute-mark renders. Tested against 92 real clock photos
+(`kongaskristjan/real-clocks`, CC0) with `scripts/evaluate_real_photos.py`:
+**5.4% top-1 accuracy** (vs. 99.58% synthetic), mean error 176 minutes, mean
+confidence on its own top-1 guess just 0.205. Errors are spread across every
+error magnitude rather than one clean systematic offset — this looks like
+genuine confusion on out-of-distribution input, consistent with the
+rotation-brittleness finding above, not a single fixable bug. See
+`DATASET.md` ("Real-photo test set") for how to reproduce and
+`CHANGELOG.md` (2026-08-24) for the full diagnosis.
+
+![Real-photo predictions: six best and six worst](docs/images/real_photo_predictions.png)
+
 ## Testing
 
 ```bash
@@ -133,17 +148,15 @@ guidance.
 
 ## Future work
 
-- **Test on real (non-synthetic) clock photos** — a new axis of difficulty,
-  not more tuning on this dataset. Everything measured so far is on
-  synthetic, upright, centered, exact-5-minute-mark renders; `DATASET.md`
-  already lists three untried candidates (`kongaskristjan/real-clocks`,
-  `vctorsuarezvara/real-images-of-analogclocks`,
-  `shivajbd/analog-clocks`). Given the rotation-brittleness finding (3°
-  costs ~30 points, 6° destroys accuracy entirely), unposed real photos —
-  off-axis viewing angles, non-upright hands, imprecise time settings,
-  varied lighting — seem likely to break this model in ways the synthetic
-  set can't reveal. Worth treating as its own investigation rather than
-  squeezing more accuracy out of the current dataset.
+- **Close the real-photo gap.** Now measured, not just predicted (see
+  "Generalization to real photos" above): 5.4% top-1 on real clock photos vs.
+  99.58% synthetic. The 92-image sample here has no angle/lighting/dial-style
+  labels, so it can't isolate which factor dominates the failure — a bigger,
+  labeled real-photo set (`vctorsuarezvara/real-images-of-analogclocks` is
+  untried) would help. Likely needs its own data collection or realistic
+  augmentation (perspective, lighting, hand-drawing variance) rather than
+  more epochs on the current synthetic set, which this result suggests
+  wouldn't transfer anyway.
 - **Model card / public-facing writeup.** The findings here (rotation
   brittleness despite dial-reading invariance, the two dataset rendering
   defects and how Grad-CAM helped tell them apart from real model error, the

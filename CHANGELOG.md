@@ -2,6 +2,69 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-24 (very newest) — real (non-synthetic) clock photos: the model collapses
+
+Follow-up to the rotation-brittleness finding (AGENTS.md: 3° costs ~30
+points, 6° destroys accuracy entirely). Every image the model has ever been
+measured on is synthetic, upright, centered, and set to an exact 5-minute
+mark. Real photos violate all of that at once (off-axis angle, imprecise
+hand positions, varied lighting/framing) -- does the model generalize, or was
+99.99% "real" accuracy on the synthetic set an artifact of how narrow that
+set is?
+
+### Added
+- `scripts/evaluate_real_photos.py` -- evaluates the default checkpoint
+  against a directory of real clock photos labelled by filename
+  (`<hash>_<hour>_<minute>.jpg`), reporting both exact-class accuracy
+  (true time rounded to the nearest 5-minute class, matching the model's
+  actual 144-way task) and circular minutes-off error against the
+  *unrounded* true time. Also writes a qualitative 12-image
+  best-6/worst-6 grid.
+- `real_data/` (gitignored) -- `kongaskristjan/real-clocks` downloaded via
+  `kaggle datasets download -d kongaskristjan/real-clocks -p real_data
+  --unzip`. See `DATASET.md`'s new "Real-photo test set" section for
+  provenance/license/re-download steps.
+- `docs/images/real_photo_predictions.png` -- the qualitative grid,
+  committed as a static figure.
+
+### Findings
+- **It collapses, as predicted.** 92 real photos: **5.4% top-1 accuracy**
+  (vs. 99.58% on the synthetic test split), 15.2% top-5, mean circular error
+  **175.7 minutes** (median 170), only 6.5% of predictions within 5 minutes
+  of the true time, mean confidence on its own (usually wrong) top-1 guess
+  just 0.205 -- vs. typically >0.9 on synthetic images, correct or not. This
+  is not "somewhat worse," it's a different regime: essentially random
+  performance on a 144-way task (chance level ~0.7%) that would need the
+  model to have learned nothing at all to do much worse.
+- **Errors are broadly spread, not one clean systematic offset.** Binned by
+  circular minutes-off: 6 within 5 min, 3 within 5-15, 3 within 15-30, 2
+  within 30-60, 14 within 60-120, 16 within 120-165, 14 within 165-195
+  (roughly a 6-hour/180-degree "opposite side of the dial" error -- notably
+  present but only 15.2% of cases, not dominant), 18 within 195-300, 16
+  within 300-360. Ruled out the appealing hypothesis that this is "just" the
+  ±3h15m dataset-defect pattern recurring, or a single systematic
+  hand-reading flip -- the spread across every error magnitude looks like
+  genuine model confusion on out-of-distribution inputs, not one fixable bug.
+- **Qualitatively**, the 6 best predictions (0-2 min off, one 3 min) are
+  visually close to the synthetic training distribution: clean, roughly
+  frontal, well-lit clock faces. The 6 worst (300-360 min off, i.e. roughly
+  opposite-side-of-dial reads) include odd framings, ornate/photographic
+  dials, and reflective surfaces -- consistent with the rotation/off-axis
+  brittleness hypothesis, though this sample is too small (92 images, no
+  angle/lighting labels) to isolate which specific factor (angle vs.
+  lighting vs. dial style vs. imprecise hand positions) drives the failure.
+- **Conclusion:** this confirms the concern that motivated the test --
+  99.99%-on-synthetic does not transfer to real photos at all, and this is a
+  materially different, harder problem than anything tuned on the current
+  dataset. Treat as a separate investigation (different data collection,
+  probably different architecture/training strategy, possibly explicit
+  rotation/perspective augmentation on a real or realistic training set) --
+  not a case for more epochs or augmentation on the synthetic set, which
+  this result suggests wouldn't transfer anyway.
+- Not folded into any other accuracy figure in this repo -- `real_data/` is
+  kept strictly separate from `data/` (the training/eval set) and this
+  checkpoint was not retrained on it.
+
 ## 2026-08-24 (newest) — automated tests + CI
 
 ### Added

@@ -135,8 +135,35 @@ python scripts/evaluate.py --split test     # expect ~0.9958 top-1 (default chec
 
 ### If you later want real photographs
 
-Related Kaggle datasets, none of them verified here:
+Related Kaggle datasets:
 
-- `kongaskristjan/real-clocks` — time-labelled photos of real clocks
-- `vctorsuarezvara/real-images-of-analogclocks` — 102 hand-labelled real images
-- `shivajbd/analog-clocks` — 50K synthetic, labels as hour/minute columns
+- **`kongaskristjan/real-clocks`** — time-labelled photos of real clocks.
+  **Used, see below.**
+- `vctorsuarezvara/real-images-of-analogclocks` — 102 hand-labelled real
+  images. Not tried.
+- `shivajbd/analog-clocks` — 50K synthetic, labels as hour/minute columns.
+  Synthetic, not a real-photo source; not tried.
+
+## Real-photo test set (auxiliary, not used for training)
+
+**2026-08-24:** tested the default checkpoint against real (non-synthetic)
+clock photos, to check whether the rotation-brittleness finding (AGENTS.md)
+predicts real-world failure. It does, badly. Full findings in `CHANGELOG.md`;
+short version: **5.4% top-1 accuracy** (vs. 99.58% on the synthetic test
+split), mean error ~176 minutes.
+
+Source: **`kongaskristjan/real-clocks`** on Kaggle (CC0-1.0, photos
+originally from pxhere.com). 92 real clock photos, ground-truth time
+embedded in the filename (`<hash>_<hour>_<minute>.jpg`), pre-split into
+`train/` (58) and `val/` (34) — both used together here since this is
+eval-only, not training.
+
+```bash
+mkdir -p real_data && kaggle datasets download -d kongaskristjan/real-clocks -p real_data --unzip
+python scripts/evaluate_real_photos.py
+```
+
+Not committed (gitignored, `real_data/`) — download fresh as above. Not used
+for training or included in any accuracy figure elsewhere in this repo; kept
+strictly separate from `data/` (the synthetic set the model is trained and
+normally evaluated on).

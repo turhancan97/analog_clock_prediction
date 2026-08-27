@@ -2,7 +2,141 @@
 
 Newest first. Dates are absolute.
 
-## 2026-08-24 (newest of all) — characterizing the rotation-brittleness cliff
+## 2026-08-27 — backbone ablation, step 1 of the architecture investigation
+
+The "is EfficientNetB3 the right fit?" question (README future work #6).
+Step 1 is a pure size/latency ablation: same classifier head, same 80-epoch
+recipe, same augmentation — only the backbone changes. Step 2 (head reframe:
+cyclic sin/cos regression vs. flat 144-way softmax) is not started.
+
+### Results (job 478705, dgxa100, 41 min for all five)
+
+| backbone | params | test top-1 | dataset top-1 (errors) | mean err (dataset) | CPU ms/img |
+|---|---|---|---|---|---|
+| efficientnetb3 (retrained control) | 11.2M | 0.9889 | **0.9961** (56) | 0.7 min | 71.7 |
+| efficientnetb0 | 4.4M | 0.9882 | **0.9949** (73) | 0.9 min | 35.3 |
+| mobilenetv3small | 1.1M | 0.9660 | 0.9871 (186) | 2.7 min | 11.7 |
+| simplecnn (from scratch) | 0.64M | 0.9632 | 0.9882 (170) | 2.4 min | 10.0 |
+| resnet50v2 | 24.1M | **0.006 — training failed** | 0.007 | 180 min | 50.6 |
+
+- **EfficientNetB0 is a near-free 2.5× shrink.** Dataset-wide accuracy
+  0.9949 vs B3's 0.9961 — a 0.12-point gap that is inside the dataset-defect
+  noise floor (~32 of the ~56–73 errors are the known blank-dial / ±195-min
+  rendering defects, not model errors). Half the params, 2× faster on CPU.
+  (Superseded by the 2026-08-27 Step 2 results above: seeded runs put the B0
+  gap at ~0.4–0.5 pt, outside defect noise, and with no deployment target
+  B3 is kept as the default.)
+- **MobileNetV3-Small and the from-scratch simplecnn cost a real ~2–3
+  points** (96.3–96.6% test, 98.7–98.8% dataset) but are 6–7× faster on CPU
+  and 10–17× smaller. The "deployment at all costs" options, not free ones.
+- **A 0.64M from-scratch CNN ties the 1.1M ImageNet-pretrained
+  MobileNetV3-Small.** Confirms the hypothesis that ImageNet texture priors
+  add little on this clean synthetic line-art — the task is geometric, not
+  textural.
+- **ResNet50V2 failed to train** — stuck at 0.6%, early-stopped at epoch 6
+  restoring epoch 1. This is a bug/instability in the resnet code path (the
+  `preprocess_input`-via-`Identity`-layer wiring in `build_model`, and/or
+  fully-unfrozen fine-tuning of a 24M-param backbone with Adamax lr=1e-3 from
+  step 1), **not an architecture verdict**. Not pursued further: ResNet50V2
+  was only a control, and at 2× B3's params it is the wrong direction anyway.
+
+### Added
+- `scripts/train.py` now takes `--backbone {efficientnetb3, efficientnetb0,
+  mobilenetv3small, resnet50v2, simplecnn}` (default `efficientnetb3`, so the
+  existing Slurm scripts are unchanged). `build_model()` gained a `backbone`
+  first argument; the classifier head (`GlobalMaxPool → BN → 256 → Dropout →
+  144`) is now shared via `_head()`. `simplecnn` is a ~0.64M-param ConvNet
+  built from scratch (no ImageNet weights) — `build_simplecnn()`. ResNet50V2
+  gets an explicit `resnet_v2.preprocess_input` layer; the EfficientNet and
+  MobileNetV3 families keep their built-in input scaling (still raw [0,255]).
+- `scripts/backbone_ablation.py` — summarises one checkpoint: param count,
+  test + dataset-wide top-1, mean circular error (min), and CPU batch-1
+  latency (`/CPU:0`, the deployment-relevant number). Prints a markdown table
+  row to paste into the results table.
+- `scripts/train_backbone_ablation.slurm` — trains all five backbones at the
+  80-epoch budget and runs `backbone_ablation.py --no-latency` on each. Run
+  the latency column separately in the interactive CPU shell (GPU-node CPUs
+  differ).
+
+### B0 confirmation run (job 478736, `--epochs 150 --patience 12`)
+- **B0 reproduces at exactly 0.9882 test / 0.9949 dataset-wide (74 errors)** —
+  identical to the ablation run despite the longer budget (early-stopped
+  epoch 35, best 23). So B0's plateau is real, not undertraining.
+- **Neither B0 nor the retrained B3 control reproduces the archived
+  `clock_model_unfrozen_aug_80ep.keras` default's 0.9958 test / 0.9977
+  dataset.** The retrained B3 got 0.9889 / 0.9961; B0 got 0.9882 / 0.9949.
+  The ~0.7pt test gap is consistent across both backbones → it's a
+  training-recipe / seed effect in the current `train.py`, not a backbone
+  property. (No seed is set; augmentation is stochastic. The original run
+  best'd at epoch 20 after a patience-5 stop at 25; these stop earlier.)
+- **Verdict (revised by Step 2): B0 trails B3 by ~0.4–0.5 pt across seeds**
+  and the default checkpoint stays B3. With no deployment target the size
+  win buys nothing; B0 remains one flag away (`--backbone efficientnetb0`)
+  for whenever size does matter.
+- Added `--patience` to `train.py` (default 5, unchanged).
+
+### Step 2 results — cyclic regression head loses; seed 0 reproduces the baseline (job 478751, 1h19m)
+
+| run | test top-1 | dataset top-1 (errors) | mean err (dataset) |
+|---|---|---|---|
+| B0 softmax seed 0 | 0.9792 | 0.9920 (115) | 1.6 min |
+| B0 softmax seed 1 | 0.9847 | 0.9926 (106) | 1.4 min |
+| **B0 circular seed 0** | **0.2083** | **0.2128 (11335)** | 13.5 min |
+| **B0 circular seed 1** | **0.2833** | **0.2744 (10448)** | 8.2 min |
+| B3 softmax seed 0 | **0.9951** | **0.9975 (36)** | 0.5 min |
+| B3 softmax seed 1 | 0.9896 | 0.9964 (52) | 0.7 min |
+
+- **The cyclic sin/cos regression head is far worse — flat softmax wins
+  decisively.** Both circular seeds collapse to ~21–28% exact-bucket top-1
+  (vs ~99% for softmax). Mean error is ~8–13 min, well above chance (~180),
+  so the head learns the *approximate* hand position but cannot resolve the
+  5-minute bucket. Almost certainly because **`RandomRotation(0.03)` (±10.8°)
+  augments the image but not the absolute-angle target** — every training
+  example carries up to ±21 min of label noise. The softmax head is immune
+  (the model reads dial numerals and stays class-invariant to small
+  rotation — the documented rotation-invariance result); an absolute-angle
+  regression target is not. Not pursued further unless someone wants to
+  retry it with rotation aug disabled for `--head circular` (and/or a
+  von Mises / `1 − cos` angular loss instead of MSE-on-(sin,cos), whose
+  gradient vanishes near the target).
+- **Seed 0 reproduces the archived baseline.** B3 softmax seed 0 hit 0.9975
+  dataset / 0.9951 test — matching `clock_model_unfrozen_aug_80ep.keras`
+  (0.9977 / 0.9958) within noise. So the recipe *does* reproduce with a
+  fixed seed; the backbone-ablation misses were run-to-run variance, now
+  bounded at ~0.001 dataset / ~0.005 test between seeds 0 and 1.
+- **B0 vs B3 gap holds up.** B0 softmax (0.9920–0.9926 dataset) trails B3
+  softmax (0.9964–0.9975) by ~0.4–0.5 pt across seeds — a bit wider than the
+  ablation's 0.12 pt, and now outside pure defect noise. B0 stays the
+  "cheap deployment" option, not a free swap.
+- **Verdict: keep flat 144-way softmax; keep EfficientNetB3 as default.**
+  Nothing here justifies swapping the default checkpoint.
+
+### Step 2 scaffolding — cyclic regression head + seed control
+
+- `train.py --head circular` adds a 2-unit `(sin, cos)` output
+  (`Dense(2) → UnitNormalization`) trained with MSE against
+  `clockmodel.CIRCULAR_TARGETS` (each class's dial angle), plus a
+  `MeanMinutesError` metric. Checkpoint/EarlyStopping monitor
+  `val_min_err` (min) instead of `val_accuracy`. `--head softmax` (default)
+  is unchanged.
+- `train.py --seed N` → `keras.utils.set_random_seed` for reproducible
+  weights + augmentation + shuffling.
+- `clockmodel.output_to_class_idx()` decodes either head to class indices
+  (144-wide → argmax; 2-wide → nearest angle). `evaluate.py` and
+  `backbone_ablation.py` now route through it and are head-agnostic;
+  `evaluate.py` skips top-5 / confidence for the regression head.
+- `scripts/train_head_ablation.slurm` (job 478751): B0 softmax ×2 seeds,
+  B0 circular ×2 seeds, B3 softmax ×2 seeds — answers "does the cyclic head
+  beat flat softmax?" and bounds the run-to-run variance in one job.
+  120-epoch budget, patience 12.
+
+Resolved: single-angle regression underperforms badly (job 478751 above);
+flat softmax kept. A two-hand-angle decomposition was not tried — the more
+likely fix is rotation-aug / loss-function, see the Step 2 results.
+- ResNet50V2 path is left as-is (documented failure); fix only if a
+  ResNet-class control is ever actually wanted.
+
+## 2026-08-24 — characterizing the rotation-brittleness cliff
 
 Follow-up to both the original rotation-brittleness finding (an ad-hoc,
 uncommitted check: 0 deg -> 100%, 3 deg -> ~69%, 6 deg -> 0%) and the

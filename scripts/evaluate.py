@@ -33,15 +33,18 @@ def main():
 
     probs = model.predict(ds, verbose=1)
     y_true = np.concatenate([y.numpy().argmax(1) for _, y in ds])
-    y_pred = probs.argmax(1)
+    y_pred = cm.output_to_class_idx(probs)
+    is_softmax = probs.shape[-1] == cm.NUM_CLASSES
 
     acc = (y_pred == y_true).mean()
-    top5 = np.mean([t in row for row, t in zip(np.argsort(probs, 1)[:, -5:], y_true)])
+    top5 = (np.mean([t in row for row, t in zip(np.argsort(probs, 1)[:, -5:], y_true)])
+            if is_softmax else float("nan"))
     err = minutes_off([names[i] for i in y_pred], [names[i] for i in y_true])
 
     print(f"\nsplit          : {args.split}  ({len(y_true)} images)")
     print(f"top-1 accuracy : {acc:.4f}")
-    print(f"top-5 accuracy : {top5:.4f}")
+    print(f"top-5 accuracy : {top5:.4f}" if is_softmax
+          else "top-5 accuracy : n/a (regression head)")
     print(f"median |error| : {np.median(err):.0f} min")
     print(f"mean |error|   : {err.mean():.1f} min")
     print(f"within 5 min   : {(err <= 5).mean():.4f}")
@@ -50,9 +53,10 @@ def main():
     if len(wrong):
         print(f"\n{len(wrong)} misread(s):")
         for i in wrong[:20]:
+            conf = f"p={probs[i, y_pred[i]]:.3f}, " if is_softmax else ""
             print(f"  true {cm.label_to_time(names[y_true[i]]):>5}"
                   f"  ->  pred {cm.label_to_time(names[y_pred[i]]):>5}"
-                  f"  (p={probs[i, y_pred[i]]:.3f}, {err[i]:.0f} min off)")
+                  f"  ({conf}{err[i]:.0f} min off)")
         if len(wrong) > 20:
             print(f"  ... and {len(wrong) - 20} more")
 

@@ -210,7 +210,17 @@ guidance.
   the confidence score is ever used to decide when to trust a prediction vs.
   fall back to a human (e.g. for the real-photo axis above).
 - **Model size / deployment.** EfficientNetB3 at 150×150 is a fairly heavy
-  backbone for a 144-way classification task this constrained. Every
-  training run so far has varied epochs/augmentation, never architecture —
-  untested whether a much smaller model, or one distilled from this one,
-  holds accuracy if latency or deployment size ever matters.
+  backbone for a 144-way classification task this constrained. A backbone
+  ablation (2026-08-27, `scripts/train_backbone_ablation.slurm`, see
+  `CHANGELOG.md`) found **EfficientNetB0 costs ~0.4–0.5 pt dataset-wide
+  accuracy for 2.5× fewer params and 2× the CPU speed** —
+  `train.py --backbone efficientnetb0`. MobileNetV3-Small and a 0.64M
+  from-scratch CNN trade ~2–3 points of accuracy for 6–7× CPU speedup.
+  B3 kept as default; seeded runs (`--seed 0`) reproduce the archived
+  0.9977 baseline, so the earlier "recipe drift" was just unseeded variance.
+  A **cyclic sin/cos regression head** (`--head circular`, the "better fit"
+  idea) was tested and lost badly — ~21–28% exact-bucket accuracy, because
+  rotation augmentation corrupts the absolute-angle target (see
+  `CHANGELOG.md` 2026-08-27). Remaining: distillation; retry the regression
+  head with rotation aug off + an angular loss; `--backbone resnet50v2` is
+  currently broken.

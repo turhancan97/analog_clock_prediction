@@ -11,6 +11,27 @@ DATA_DIR = REPO_DIR / "data"
 MODELS_DIR = REPO_DIR / "models"
 IMG_SIZE = (150, 150)          # what the released model expects
 NUM_CLASSES = 144
+MINUTES_PER_CLASS = 5          # 720 min on a 12h dial / 144 classes
+
+# Class i is i*5 minutes past 12 o'clock, i.e. angle 2*pi*i/144 around the
+# dial. CIRCULAR_TARGETS[i] = (sin, cos) of that angle -- the regression
+# target for the circular head (train.py --head circular), which respects
+# that 11:55 and 12:00 are adjacent where the flat 144-way softmax does not.
+_ANGLES = 2.0 * np.pi * np.arange(NUM_CLASSES) / NUM_CLASSES
+CIRCULAR_TARGETS = np.stack([np.sin(_ANGLES), np.cos(_ANGLES)], axis=1).astype("float32")
+
+
+def output_to_class_idx(preds):
+    """Model output -> class index, dispatching on the head. (batch, 144)
+    softmax probabilities -> argmax; (batch, 2) (sin, cos) -> nearest class."""
+    preds = np.asarray(preds)
+    if preds.shape[-1] == NUM_CLASSES:
+        return preds.argmax(-1)
+    if preds.shape[-1] == 2:
+        ang = np.mod(np.arctan2(preds[..., 0], preds[..., 1]), 2.0 * np.pi)
+        return np.mod(np.round(ang / (2.0 * np.pi / NUM_CLASSES)).astype(int),
+                      NUM_CLASSES)
+    raise ValueError(f"unexpected model output width {preds.shape[-1]}")
 
 # Best checkpoint measured so far (2026-08-23): rotation-aug + 80-epoch
 # fine-tune, 99.77% on the full dataset vs the released time-99.68.h5's

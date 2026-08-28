@@ -52,12 +52,29 @@ one per class).
   model. Figure: `docs/images/rotation_range_sweep.png`.
 - `scripts/train_rotation_range.slurm` — new (job 479269).
 
+### Real-photo re-check (does the wider plateau help? — no)
+
+Re-ran `scripts/evaluate_real_photos.py` (92 kongaskristjan/real-clocks
+photos) against the new ±54° default:
+
+| | ±10.8° default (2026-08-24) | ±54° default (now) |
+|---|---|---|
+| top-1 | 5.4% (5/92) | **2.2% (2/92)** |
+| mean \|error\| | 176 min | 177 min |
+| mean confidence | 0.205 | 0.172 |
+
+**Wider rotation augmentation does not close the real-photo gap** — if
+anything marginally worse (within 3-image noise), confidence lower. Confirms
+the earlier read that the real-photo failure is not rotation-shaped:
+perspective, dial art, lighting, hand rendering and off-centre framing
+dominate. Many predictions collapse onto a handful of classes (3:00, 5:35,
+6:00); several true ~10:10 photos all predict 3:00. `real_photo_predictions.png`
+regenerated.
+
 ### Not done
 
 - `docs/images/rotation_cliff.png` and other figures still show the old
   default; regenerate when convenient.
-- Whether this helps the real-photo gap (future work #1) is untested — the
-  real-photo failure profile looked like more than rotation.
 
 ## 2026-08-27 — backbone ablation, step 1 of the architecture investigation
 

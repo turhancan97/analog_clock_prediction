@@ -185,13 +185,13 @@ These are documented at length in `README.md`; the short version:
 - **Does not generalize to real photos at all** (2026-08-24, see
   `CHANGELOG.md`). Tested against 92 real clock photos
   (`kongaskristjan/real-clocks`, `scripts/evaluate_real_photos.py`):
-  **5.4% top-1 accuracy** (vs. ~99.7% synthetic), mean error 176 minutes,
-  mean confidence on its own top-1 guess just 0.205. Errors are spread
-  across every magnitude, not one clean systematic offset — this looks like
-  genuine confusion on out-of-distribution input, not a fixable single bug.
-  **Measured on the ±10.8° checkpoint; re-run against the ±54° default**
-  (`clock_model_rot54_s0.keras`) before quoting this again — wider rotation
-  robustness may move it.
+  **2.2% top-1 accuracy** on the ±54° default (vs. ~99.7% synthetic), mean
+  error 177 minutes, mean confidence 0.17. Errors are spread across every
+  magnitude, not one clean systematic offset — genuine confusion on
+  out-of-distribution input, not a fixable single bug. **Rotation robustness
+  is ruled out as the cause** (2026-08-28): the ±54° default scores the same
+  ~2–5% as the old ±10.8° checkpoint (5.4%). The gap is perspective, dial
+  art, lighting and framing.
   The 99.99%-real-accuracy figure on the synthetic set (above) says nothing
   about real-world performance; don't cite it as if it does.
 

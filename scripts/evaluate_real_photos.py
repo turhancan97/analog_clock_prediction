@@ -104,7 +104,7 @@ def main():
     within30 = np.mean(errs <= 30)
 
     print(f"real photos       : {n} images (kongaskristjan/real-clocks)")
-    print(f"top-1 accuracy     : {top1:.4f}  (vs. ~0.9958 on the synthetic test split)")
+    print(f"top-1 accuracy     : {top1:.4f}  (vs. ~0.9972 on the synthetic test split)")
     print(f"top-5 accuracy     : {top5:.4f}")
     print(f"median |error|     : {np.median(errs):.0f} min")
     print(f"mean |error|       : {errs.mean():.1f} min")

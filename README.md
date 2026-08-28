@@ -8,7 +8,8 @@
 Reads the time off a 224×224 analog clock face image, as one of 144 classes
 (every 5-minute increment on a 12-hour dial).
 
-**[Case study →](docs/case-study.html)** (the whole story, rendered) &nbsp;·&nbsp;
+**[Try it →](docs/demo.html)** (reads a clock in your browser) &nbsp;·&nbsp;
+**[Case study →](docs/case-study.html)** (the whole story) &nbsp;·&nbsp;
 brand assets in [`docs/branding/`](docs/branding/).
 
 ![Sample predictions across a random selection of classes](docs/images/sample_predictions.png)

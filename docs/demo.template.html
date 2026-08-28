@@ -1,0 +1,489 @@
+<title>Read a Clock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.22.0/tf.min.js"></script>
+
+<style>
+  :root {
+    --blue: #3a7eab;
+    --blue-ink: #2f6a91;
+    --red: #cf4832;
+    --grey: #d1d3d4;
+
+    --ground: #f5f6f8;
+    --surface: #ffffff;
+    --raise: #eef1f3;
+    --ink: #23292b;
+    --ink-soft: #5b6469;
+    --hair: #e0e3e6;
+    --band: #14181b;
+    --band-ink: #eef0f0;
+    --band-soft: #99a1a6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0f1214; --surface: #171b1e; --raise: #1e2327;
+      --ink: #e8eaeb; --ink-soft: #99a1a6; --hair: #272c30;
+      --blue-ink: #6bb0d6; --band: #05070880;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0f1214; --surface: #171b1e; --raise: #1e2327;
+    --ink: #e8eaeb; --ink-soft: #99a1a6; --hair: #272c30;
+    --blue-ink: #6bb0d6; --band: #05070880;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    font-size: 1.02rem; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 52rem; margin: 0 auto; padding: clamp(1.1rem, 4vw, 2.5rem); }
+
+  header { text-align: center; margin-bottom: 2.25rem; }
+  header svg.mark { width: 3.4rem; height: auto; margin-bottom: .9rem; }
+  h1 {
+    font-family: "Instrument Serif", Georgia, serif; font-weight: 400;
+    font-size: clamp(2.1rem, 1.6rem + 2.4vw, 3.4rem); line-height: 1;
+    margin: 0 0 .5rem;
+  }
+  header p { color: var(--ink-soft); margin: 0; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--hair);
+    border-radius: 16px; padding: clamp(1.1rem, 3vw, 1.75rem);
+  }
+
+  /* drop zone */
+  #drop {
+    border: 2px dashed var(--hair); border-radius: 12px;
+    padding: 2.5rem 1.25rem; text-align: center; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  #drop.hot { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 7%, transparent); }
+  #drop strong { color: var(--blue-ink); }
+  #drop .hint { font-size: .85rem; color: var(--ink-soft); margin-top: .4rem; }
+  #drop svg { width: 2rem; height: 2rem; margin-bottom: .6rem; color: var(--ink-soft); }
+
+  .examples { margin-top: 1.15rem; }
+  .examples .lbl {
+    font-family: "IBM Plex Mono", monospace; font-size: .72rem;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft);
+    margin-bottom: .55rem;
+  }
+  .thumbs { display: flex; gap: .55rem; flex-wrap: wrap; }
+  .thumbs button {
+    padding: 0; border: 1px solid var(--hair); border-radius: 9px;
+    background: var(--raise); cursor: pointer; overflow: hidden;
+    width: 4.1rem; height: 4.1rem; position: relative; transition: border-color .12s;
+  }
+  .thumbs button:hover, .thumbs button:focus-visible { border-color: var(--blue); outline: none; }
+  .thumbs img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumbs .tag {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    font-family: "IBM Plex Mono", monospace; font-size: .56rem;
+    background: #14181bcc; color: #eef0f0; padding: 1px 0;
+  }
+  .thumbs .tag.real { background: #cf4832dd; }
+
+  /* result */
+  #result { margin-top: 1.25rem; display: none; }
+  #result.show { display: block; }
+  .result-grid { display: grid; gap: 1.25rem; grid-template-columns: 1fr; }
+  @media (min-width: 34rem) { .result-grid { grid-template-columns: 15rem 1fr; } }
+
+  .stage { position: relative; border-radius: 12px; overflow: hidden; background: var(--raise); aspect-ratio: 1; }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #heat { opacity: 0; transition: opacity .2s; mix-blend-mode: multiply; }
+  :root[data-theme="dark"] #heat, :root:not([data-theme="light"]) #heat { mix-blend-mode: screen; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #heat { mix-blend-mode: screen; } }
+  .stage.heaton #heat { opacity: .82; }
+
+  .readout .time {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: clamp(2.6rem, 2rem + 3vw, 4rem); line-height: 1;
+    font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: .6rem;
+  }
+  .readout .time svg { width: 2.4rem; height: 2.4rem; flex: none; align-self: center; }
+  .readout .sub { color: var(--ink-soft); font-size: .9rem; margin-top: .15rem; }
+
+  .conf { margin-top: 1rem; }
+  .conf .bar { height: .5rem; border-radius: 3px; background: var(--hair); overflow: hidden; }
+  .conf .bar i { display: block; height: 100%; background: var(--blue); border-radius: 3px; }
+  .conf .n {
+    font-family: "IBM Plex Mono", monospace; font-size: .8rem;
+    color: var(--ink-soft); margin-top: .3rem; display: flex; justify-content: space-between;
+  }
+
+  .top5 { margin-top: 1rem; display: flex; flex-direction: column; gap: .3rem; }
+  .top5 .row {
+    display: grid; grid-template-columns: 3.2rem 1fr 2.8rem; align-items: center;
+    gap: .5rem; font-family: "IBM Plex Mono", monospace; font-size: .78rem;
+  }
+  .top5 .row .t { color: var(--ink); }
+  .top5 .row .track { height: .32rem; background: var(--hair); border-radius: 2px; overflow: hidden; }
+  .top5 .row .track i { display: block; height: 100%; background: var(--ink-soft); }
+  .top5 .row .p { text-align: right; color: var(--ink-soft); }
+
+  .toggle {
+    margin-top: 1rem; display: inline-flex; align-items: center; gap: .5rem;
+    font-size: .85rem; color: var(--ink-soft); cursor: pointer; user-select: none;
+  }
+  .toggle input { accent-color: var(--blue); width: 1rem; height: 1rem; }
+
+  #status {
+    margin-top: 1rem; font-family: "IBM Plex Mono", monospace; font-size: .8rem;
+    color: var(--ink-soft); text-align: center; min-height: 1.2em;
+  }
+
+  footer {
+    margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--hair);
+    font-size: .82rem; color: var(--ink-soft); text-align: center;
+  }
+  footer a { color: var(--blue-ink); }
+  footer p { margin: .3rem 0; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    #result.show { animation: rise .4s cubic-bezier(.2,.7,.3,1); }
+    @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <svg class="mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" aria-hidden="true">
+      <g fill="none" stroke-linejoin="round">
+        <path d="M60,18 L81,23.63 L96.37,39 L102,60 L96.37,81 L81,96.37 L60,102 L39,96.37 L23.63,81 L18,60 L23.63,39 L39,23.63 Z" stroke="#9aa1a4" stroke-width="1.8"/>
+        <path d="M60,18 L96.37,39 L96.37,81 L60,102 L23.63,81 L23.63,39 Z" stroke="#c3c6c8" stroke-width="1.5"/>
+      </g>
+      <g fill="#8b9296"><circle cx="81" cy="23.63" r="3.9"/><circle cx="96.37" cy="39" r="3.9"/><circle cx="96.37" cy="81" r="3.9"/><circle cx="81" cy="96.37" r="3.9"/><circle cx="39" cy="96.37" r="3.9"/><circle cx="23.63" cy="81" r="3.9"/><circle cx="23.63" cy="39" r="3.9"/><circle cx="39" cy="23.63" r="3.9"/></g>
+      <g fill="#5f676b"><circle cx="60" cy="18" r="4.6"/><circle cx="102" cy="60" r="4.6"/><circle cx="60" cy="102" r="4.6"/><circle cx="18" cy="60" r="4.6"/></g>
+      <path d="M60,60 L39.52,45.66" fill="none" stroke="#3a7eab" stroke-width="7.5" stroke-linecap="round"/>
+      <path d="M60,60 L91.18,42" fill="none" stroke="#cf4832" stroke-width="7.5" stroke-linecap="round"/>
+      <circle cx="60" cy="60" r="5.2" fill="#23292b"/>
+    </svg>
+    <h1>Read a clock</h1>
+    <p>Drop an analog clock face. The model reads it to the nearest five minutes.</p>
+  </header>
+
+  <div class="card">
+    <div id="drop" tabindex="0" role="button" aria-label="Upload a clock image">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+        <path d="M12 16V4m0 0L7 9m5-5 5 5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke-linecap="round"/>
+      </svg>
+      <div><strong>Choose an image</strong> or drop it here</div>
+      <div class="hint">or paste with &#8984;/Ctrl&#8202;+&#8202;V &nbsp;·&nbsp; runs in your browser, nothing is uploaded</div>
+      <input type="file" id="file" accept="image/*" hidden>
+    </div>
+
+    <div class="examples">
+      <div class="lbl">or try one</div>
+      <div class="thumbs" id="thumbs"></div>
+    </div>
+
+    <div id="status">loading model…</div>
+
+    <div id="result">
+      <div class="result-grid">
+        <div class="stage" id="stage">
+          <canvas id="img" width="300" height="300"></canvas>
+          <canvas id="heat" width="300" height="300"></canvas>
+        </div>
+        <div class="readout">
+          <div class="time"><span id="predtime">—</span><span id="predclock"></span></div>
+          <div class="sub" id="predsub"></div>
+          <div class="conf">
+            <div class="bar"><i id="confbar" style="width:0%"></i></div>
+            <div class="n"><span>confidence</span><span id="confn">—</span></div>
+          </div>
+          <div class="top5" id="top5"></div>
+          <label class="toggle"><input type="checkbox" id="heattoggle"> where it looked <span id="heatwait" style="opacity:.6"></span></label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>A 0.64&#8202;M-parameter demo model — about 96% on synthetic renders like
+      the training set. Real photographs often fail; that gap is the whole
+      <a href="case-study.html">case study</a>.</p>
+    <p><a href="https://github.com/turhancan97/analog_clock_prediction">github.com/turhancan97/analog_clock_prediction</a></p>
+  </footer>
+</div>
+
+<script type="application/json" id="model-data">__MODEL_JSON__</script>
+<script type="application/json" id="example-data">__EXAMPLES_JSON__</script>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const CFG = JSON.parse($("model-data").textContent);
+  const EXAMPLES = JSON.parse($("example-data").textContent);
+  const [IMG_H, IMG_W] = CFG.img_size;
+  const NAMES = CFG.class_names;
+
+  function labelToTime(l) {
+    const [h, m] = l.split("-");
+    return `${parseInt(h, 10)}:${m}`;
+  }
+
+  // ---- rebuild the simplecnn architecture in tfjs-layers ----
+  function buildModel() {
+    const m = tf.sequential();
+    CFG.filters.forEach((f, i) => {
+      m.add(tf.layers.conv2d(Object.assign(
+        { filters: f, kernelSize: 3, padding: "same", useBias: false },
+        i === 0 ? { inputShape: [IMG_H, IMG_W, 3] } : {})));
+      m.add(tf.layers.batchNormalization());
+      m.add(tf.layers.activation({ activation: "relu" }));
+      m.add(tf.layers.maxPooling2d({ poolSize: 2 }));
+    });
+    m.add(tf.layers.globalMaxPooling2d({}));
+    m.add(tf.layers.batchNormalization());
+    m.add(tf.layers.dense({ units: 256, activation: "relu" }));
+    m.add(tf.layers.dense({ units: CFG.num_classes, activation: "softmax" }));
+    return m;
+  }
+
+  function loadWeights(model) {
+    const bin = atob(CFG.int8_b64);
+    const u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    const i8 = new Int8Array(u8.buffer);
+    const tensors = [];
+    let off = 0;
+    CFG.shapes.forEach((shape, k) => {
+      const n = shape.reduce((a, b) => a * b, 1);
+      const s = CFG.scales[k];
+      const f = new Float32Array(n);
+      for (let i = 0; i < n; i++) f[i] = i8[off + i] * s;
+      off += n;
+      tensors.push(tf.tensor(f, shape));
+    });
+    model.setWeights(tensors);
+    tensors.forEach((t) => t.dispose());
+  }
+
+  let model = null;
+  const state = { probs: null, predIdx: -1 };
+
+  // ---- drawing ----
+  const imgCanvas = $("img"), heatCanvas = $("heat");
+  // hidden IMG_W x IMG_H canvas: the actual model input (one bilinear resize
+  // from the source, matching training's image_dataset_from_directory).
+  const work = document.createElement("canvas");
+  work.width = IMG_W; work.height = IMG_H;
+
+  function drawInput(source) {
+    // stretch to square, no crop -- matches training's resize
+    work.getContext("2d").drawImage(source, 0, 0, IMG_W, IMG_H);
+    const g = imgCanvas.getContext("2d");
+    g.clearRect(0, 0, imgCanvas.width, imgCanvas.height);
+    g.imageSmoothingQuality = "high";
+    g.drawImage(source, 0, 0, imgCanvas.width, imgCanvas.height);
+  }
+
+  function analogClockSVG(idx) {
+    const totalMin = idx * 5;                 // minutes past 12
+    const h = totalMin / 60, m = totalMin % 60;
+    const ha = (h % 12) * 30 * Math.PI / 180;
+    const ma = m * 6 * Math.PI / 180;
+    const pt = (a, r) => `${20 + r * Math.sin(a)},${20 - r * Math.cos(a)}`;
+    return `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="20" cy="20" r="17" fill="none" stroke="var(--hair)" stroke-width="2"/>
+      <line x1="20" y1="20" x2="${pt(ha, 9).split(",")[0]}" y2="${pt(ha, 9).split(",")[1]}" stroke="var(--blue)" stroke-width="2.6" stroke-linecap="round"/>
+      <line x1="20" y1="20" x2="${pt(ma, 13).split(",")[0]}" y2="${pt(ma, 13).split(",")[1]}" stroke="var(--red)" stroke-width="2.6" stroke-linecap="round"/>
+      <circle cx="20" cy="20" r="1.8" fill="var(--ink)"/>
+    </svg>`;
+  }
+
+  // ---- inference ----
+  async function predict() {
+    const probsT = tf.tidy(() => {
+      const x = tf.browser.fromPixels(work).toFloat().div(255).expandDims(0);
+      return model.predict(x).squeeze();
+    });
+    const probs = await probsT.data();
+    probsT.dispose();
+    state.probs = probs;
+
+    const order = Array.from(probs.keys()).sort((a, b) => probs[b] - probs[a]);
+    state.predIdx = order[0];
+    const p = probs[order[0]];
+
+    $("predtime").textContent = labelToTime(NAMES[order[0]]);
+    $("predclock").innerHTML = analogClockSVG(order[0]);
+    $("predsub").textContent = `class ${NAMES[order[0]]}  ·  every 5 min`;
+    $("confbar").style.width = `${(p * 100).toFixed(1)}%`;
+    $("confn").textContent = p.toFixed(3);
+
+    $("top5").innerHTML = order.slice(0, 5).map((i) => `
+      <div class="row">
+        <span class="t">${labelToTime(NAMES[i])}</span>
+        <span class="track"><i style="width:${(probs[i] * 100).toFixed(1)}%"></i></span>
+        <span class="p">${probs[i].toFixed(3)}</span>
+      </div>`).join("");
+
+    $("result").classList.add("show");
+    $("stage").classList.remove("heaton");
+    $("heattoggle").checked = false;
+    clearHeat();
+  }
+
+  // ---- occlusion sensitivity ("where it looked") ----
+  function clearHeat() {
+    const g = heatCanvas.getContext("2d");
+    g.clearRect(0, 0, heatCanvas.width, heatCanvas.height);
+  }
+
+  async function computeHeat() {
+    const PATCH = 30, STRIDE = 15, GRID = Math.floor((IMG_H - PATCH) / STRIDE) + 1;
+    $("heatwait").textContent = "…";
+    await new Promise((r) => setTimeout(r, 15));
+
+    const base = tf.tidy(() =>
+      tf.browser.fromPixels(work).toFloat().div(255));                // [H,W,3]
+    const baseArr = await base.array();
+    const drops = new Float32Array(GRID * GRID);
+
+    for (let gy = 0; gy < GRID; gy++) {
+      // one row of occluded images per batch to keep memory sane
+      const batch = [];
+      for (let gx = 0; gx < GRID; gx++) {
+        const a = baseArr.map((row) => row.map((px) => px.slice()));
+        const y0 = gy * STRIDE, x0 = gx * STRIDE;
+        for (let y = y0; y < y0 + PATCH; y++)
+          for (let x = x0; x < x0 + PATCH; x++)
+            a[y][x] = [0.5, 0.5, 0.5];
+        batch.push(a);
+      }
+      const bt = tf.tensor(batch);                                     // [GRID,H,W,3]
+      const pr = tf.tidy(() => model.predict(bt).gather([state.predIdx], 1).squeeze());
+      const prArr = await pr.data();
+      bt.dispose(); pr.dispose();
+      const baseP = state.probs[state.predIdx];
+      for (let gx = 0; gx < GRID; gx++)
+        drops[gy * GRID + gx] = Math.max(0, baseP - prArr[gx]);
+    }
+    base.dispose();
+
+    // normalise, then paint a smooth field: bilinear-ish via large soft dots
+    let mx = 0;
+    for (const d of drops) mx = Math.max(mx, d);
+    mx = mx || 1;
+
+    const W = heatCanvas.width;                 // display resolution
+    const tmp = document.createElement("canvas");
+    tmp.width = tmp.height = W;
+    const tg = tmp.getContext("2d");
+    const cell = W / GRID;
+    for (let gy = 0; gy < GRID; gy++)
+      for (let gx = 0; gx < GRID; gx++) {
+        const v = drops[gy * GRID + gx] / mx;
+        if (v < 0.05) continue;
+        const cx = (gx + 0.5) * cell, cy = (gy + 0.5) * cell;
+        const rad = cell * 1.5;
+        const grad = tg.createRadialGradient(cx, cy, 0, cx, cy, rad);
+        grad.addColorStop(0, `rgba(207,72,50,${(v * 0.95).toFixed(3)})`);
+        grad.addColorStop(1, "rgba(207,72,50,0)");
+        tg.fillStyle = grad;
+        tg.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
+      }
+
+    const g = heatCanvas.getContext("2d");
+    g.clearRect(0, 0, W, W);
+    g.filter = "blur(5px)";
+    g.drawImage(tmp, 0, 0);
+    g.filter = "none";
+
+    $("heatwait").textContent = "";
+  }
+
+  let heatDone = false;
+  $("heattoggle").addEventListener("change", async (e) => {
+    if (e.target.checked) {
+      if (!heatDone) { await computeHeat(); heatDone = true; }
+      $("stage").classList.add("heaton");
+    } else {
+      $("stage").classList.remove("heaton");
+    }
+    try { localStorage.setItem("tock-heat", e.target.checked ? "1" : "0"); } catch (_) {}
+  });
+
+  // ---- input handling ----
+  function handleImage(source) {
+    if (!model) { $("status").textContent = "still loading the model…"; return; }
+    heatDone = false;
+    drawInput(source);
+    $("status").textContent = "reading…";
+    requestAnimationFrame(async () => {
+      try {
+        await predict();
+        $("status").textContent = "";
+        if (safeGet("tock-heat") === "1") $("heattoggle").click();
+      } catch (err) {
+        $("status").textContent = "could not read that image";
+        console.error(err);
+      }
+    });
+  }
+  function safeGet(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
+
+  function loadFromURL(url) {
+    const im = new Image();
+    im.crossOrigin = "anonymous";
+    im.onload = () => handleImage(im);
+    im.onerror = () => { $("status").textContent = "could not load that image"; };
+    im.src = url;
+  }
+  function loadFile(f) {
+    if (!f || !f.type.startsWith("image/")) return;
+    const r = new FileReader();
+    r.onload = () => loadFromURL(r.result);
+    r.readAsDataURL(f);
+  }
+
+  const drop = $("drop");
+  drop.addEventListener("click", () => $("file").click());
+  drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("file").click(); } });
+  $("file").addEventListener("change", (e) => loadFile(e.target.files[0]));
+  ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("hot"); }));
+  ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("hot"); }));
+  drop.addEventListener("drop", (e) => loadFile(e.dataTransfer.files[0]));
+  window.addEventListener("paste", (e) => {
+    const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith("image/"));
+    if (item) loadFile(item.getAsFile());
+  });
+
+  // examples
+  $("thumbs").innerHTML = EXAMPLES.map((ex, i) => `
+    <button data-i="${i}" title="${ex.kind} · labelled ${labelToTime(ex.label)}">
+      <img src="${ex.uri}" alt="${ex.kind} clock">
+      <span class="tag ${ex.kind === "real" ? "real" : ""}">${ex.kind === "real" ? "photo" : "render"}</span>
+    </button>`).join("");
+  $("thumbs").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (b) loadFromURL(EXAMPLES[+b.dataset.i].uri);
+  });
+
+  // ---- boot ----
+  (async () => {
+    try {
+      await tf.ready();
+      model = buildModel();
+      loadWeights(model);
+      tf.tidy(() => model.predict(tf.zeros([1, IMG_H, IMG_W, 3])));   // warm up
+      $("status").textContent = "";
+      $("drop").setAttribute("aria-disabled", "false");
+      loadFromURL(EXAMPLES[0].uri);                                    // show one immediately
+    } catch (err) {
+      $("status").textContent = "model failed to load — " + err.message;
+      console.error(err);
+    }
+  })();
+})();
+</script>

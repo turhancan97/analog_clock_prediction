@@ -30,8 +30,10 @@ Repo layout: `scripts/` holds every Python entry point (`train.py`,
 [confidence-based dataset-defect / label-error flagging; `--split real-*`
 audits the real-photo labels], `calibration.py` [reliability / ECE /
 temperature scaling / selective prediction], `gradcam_real.py` [default vs
-real-mix attention on real photos], `generate_brand_assets.py`) and the
-Slurm job files;
+real-mix attention on real photos], `generate_brand_assets.py`,
+`export_demo_model.py` + `build_demo.py` [browser demo: int8 export of a
+simplecnn injected into `docs/demo.template.html` -> `docs/demo.html`]) and
+the Slurm job files;
 `train.py` takes `--backbone` (efficientnetb3 default / efficientnetb0 /
 mobilenetv3small / resnet50v2 / simplecnn), `--head` (softmax default /
 circular = (sin,cos) angle regression), `--seed`, `--rotation-factor`

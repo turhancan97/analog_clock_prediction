@@ -2,6 +2,32 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-28 — browser inference demo (`docs/demo.html`)
+
+A self-contained Artifact that runs the model client-side: drop a clock face,
+get the predicted time + confidence + top-5 + an "where it looked" occlusion
+heatmap. Tock identity, theme-aware, nothing uploaded.
+
+- **Model:** the B3 default is ~135 MB and cannot be embedded (Artifacts have
+  a 16 MB cap and no runtime fetch). Ships `models/clock_simplecnn.keras` —
+  the 0.64 M-param from-scratch CNN from the backbone ablation, 96.3% test —
+  as **symmetric-int8** weights (`scripts/export_demo_model.py`): 627 KB, and
+  the quantisation *costs nothing* (0.9632 → 0.9674 test, noise).
+- **No TF.js conversion.** The demo rebuilds the exact `simplecnn`
+  architecture in `tfjs-layers` and `setWeights()` from the embedded blob.
+  The one gotcha: TF.js orders `model.weights` as *all trainable weights,
+  then all non-trainable* (BN moving_mean/variance last), where Keras groups
+  by layer — `export_demo_model.py` reorders to match. Verified against Keras
+  in Node: identical predictions, max Δprob 0.0013 (the int8 rounding).
+- **"Where it looked":** occlusion sensitivity (slide a grey patch, measure
+  the confidence drop) — one batched `predict`, no gradient/model surgery.
+- `scripts/build_demo.py` injects the model + 6 example images (4 synthetic,
+  2 real) into `docs/demo.template.html` → `docs/demo.html`.
+- A from-scratch `simplecnn` will **not** converge under the ±54° rotation
+  default (stuck ~0.54 val, job 479504 cancelled) — the demo model keeps the
+  ablation's ±10.8° aug. `train_demo_model.slurm` uses ±21.6° as a
+  reproducible middle ground if a fresh demo model is ever wanted.
+
 ## 2026-08-28 — real-photo analysis: label audit + Grad-CAM
 
 Two cheap analyses on the real-photo work, using existing tooling.

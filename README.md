@@ -209,52 +209,26 @@ guidance.
 
 ## Future work
 
-- **Close the real-photo gap** (partly). Fine-tuning the default with the
-  138 real training photos mixed in gets held-out real top-1 from 7% to 19%
-  (`--realism-aug --real-mix --init-weights`, `CHANGELOG.md` 2026-08-28) —
-  realism augmentation alone did nothing. Now clearly **data-bound**: 195
-  photos over 99/144 classes, with the model overfitting to common times in
-  the training set. The next lever is more labelled real photos (or a
-  photorealistic renderer), not more tuning. Residual errors also include
-  the ±195-min 12-hour-hand ambiguity, which a two-output (hour-angle,
-  minute-angle) head might address.
-- ~~**Model card / public-facing writeup.**~~ **Done (2026-08-28):**
-  `docs/case-study.html` — a narrative pass over the whole project
-  (accuracy + defect accounting, the rotation cliff and its fix, the
-  real-photo wall, the "verify, don't assume" method).
-- ~~**Confidence-based defect auto-flagging.**~~ **Done (2026-08-28):**
-  `scripts/flag_suspects.py` flags `low-conf` (diffuse, blank-dial) and
-  `confident-wrong` (sure and far off, the ±3h15m shift) predictions and
-  histograms the confident-wrong signed offsets. Over the full dataset it
-  catches all 26 of the default model's misreads (24 blank-dial, 2 shift)
-  with no per-class work.
-- ~~**Widen the rotation-augmentation range.**~~ **Done (2026-08-28).**
-  Training at `--rotation-factor 0.15` (±54°) widens the robust plateau to
-  the entire ±90° sweep at no upright-accuracy cost (in fact the best
-  checkpoint on every axis, 99.82% dataset-wide). This is now the default;
-  `clock_model_rot54_s0.keras` is the default checkpoint. Untested past
-  ±54° and against real photos (see first item).
-- ~~**Confidence calibration.**~~ **Done (2026-08-28):**
-  `scripts/calibration.py` (reliability diagram, ECE, temperature scaling,
-  selective-prediction table). Findings: on synthetic data the model is
-  already well calibrated (ECE 0.002, T≈1.07; p≥0.9 → 100% correct). On real
-  photos the synthetic-only model's confidence is *worse than useless* —
-  its p≥0.8 predictions are 0% accurate. Fine-tuning on real data fixes the
-  confidence *ranking* (top ~12% by confidence are 86% correct) but not the
-  absolute miscalibration — temperature scaling can't, it's domain shift.
-  See `CHANGELOG.md`.
-- **Model size / deployment.** EfficientNetB3 at 150×150 is a fairly heavy
-  backbone for a 144-way classification task this constrained. A backbone
-  ablation (2026-08-27, `scripts/train_backbone_ablation.slurm`, see
-  `CHANGELOG.md`) found **EfficientNetB0 costs ~0.4–0.5 pt dataset-wide
-  accuracy for 2.5× fewer params and 2× the CPU speed** —
-  `train.py --backbone efficientnetb0`. MobileNetV3-Small and a 0.64M
-  from-scratch CNN trade ~2–3 points of accuracy for 6–7× CPU speedup.
-  B3 kept as default; seeded runs (`--seed 0`) reproduce the archived
-  0.9977 baseline, so the earlier "recipe drift" was just unseeded variance.
-  A **cyclic sin/cos regression head** (`--head circular`, the "better fit"
-  idea) was tested and lost badly — ~21–28% exact-bucket accuracy, because
-  rotation augmentation corrupts the absolute-angle target (see
-  `CHANGELOG.md` 2026-08-27). Remaining: distillation; retry the regression
-  head with rotation aug off + an angular loss; `--backbone resnet50v2` is
-  currently broken.
+Finished threads — rotation-augmentation widening (the ±54° default), the
+backbone/head ablation, confidence calibration, confidence-based defect
+flagging, the case study, and the browser demo — are written up in
+`CHANGELOG.md`. What's still open:
+
+- **Close the real-photo gap.** Fine-tuning the default with 138 real
+  training photos mixed in lifts held-out real top-1 from 7% to 19%
+  (`--realism-aug --real-mix --init-weights`); realism augmentation alone did
+  nothing. Now clearly **data-bound** — 195 labelled photos over 99/144
+  classes, and the `vctorsuarezvara` half has noisy labels (2026-08-28
+  audit). The next lever is more (and cleaner) real photos, or a
+  photorealistic renderer — not more tuning.
+- **Two-hand-angle head.** Predict the hour-hand and minute-hand angles
+  separately instead of one fused 144-way class. Targets the ±195-minute
+  "12-hour ambiguity" errors that recur in both synthetic edge cases and
+  real photos. This is the correctly-designed version of the single-angle
+  sin/cos head that failed — that one was killed by rotation augmentation
+  corrupting an absolute-angle target; two hand angles with rotation aug off
+  is untried.
+- **Distillation.** B3 → B0 / MobileNetV3-Small with B3 as teacher: does it
+  close the ~0.5-pt gap a plain B0 retrain couldn't? The one loose end from
+  the backbone ablation. (`--backbone resnet50v2` is also still broken — a
+  code-path bug in `build_model`, not an architecture verdict.)

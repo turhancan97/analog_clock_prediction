@@ -2,6 +2,34 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-28 — confidence calibration
+
+README future work: "is p = 0.9 actually ~90% correct?" `scripts/calibration.py`
+— reliability diagram + ECE/MCE/NLL/Brier, post-hoc temperature scaling (fit
+on `valid`), and a selective-prediction table (accuracy vs. coverage as you
+raise the confidence threshold and defer the rest).
+
+| model / split | top-1 | ECE | fitted T | selective: p≥0.9 |
+|---|---|---|---|---|
+| default, synthetic test | 0.997 | **0.002** | 1.07 | 100% acc @ 99.5% coverage |
+| default, real test (57) | 0.070 | 0.194 | — | **0% acc** @ 3.5% coverage |
+| real-mix, real test (57) | 0.193 | 0.481 | — | 38% acc @ 28%; **86% @ p≥0.99 (12%)** |
+
+- **On synthetic data the model is already well calibrated** — ECE 0.002,
+  T ≈ 1.07 (a hair overconfident). Nothing to fix; `p ≥ 0.9` predictions are
+  100% correct at 99.5% coverage.
+- **The synthetic-only model's confidence is worse than useless on real
+  photos** — its *high*-confidence real predictions (p ≥ 0.8) are 0%
+  accurate. You cannot gate a human-fallback system on it.
+- **Fine-tuning on real data fixes the confidence *ranking*, not the
+  scaling.** The real-mix model is wildly overconfident in absolute terms
+  (ECE 0.48) but its confidence now orders predictions usefully: the top
+  ~12% by confidence (p ≥ 0.99) are 86% correct. Temperature scaling fit on
+  synthetic `valid` doesn't help the real-photo ECE — it's domain shift, not
+  a scaling error. (57-photo split; the p ≥ 0.99 bucket is ~7 images.)
+- Figures: `docs/images/calibration.png` (synthetic), `calibration_real.png`,
+  `calibration_realmix.png`.
+
 ## 2026-08-28 — case study + confidence-based defect flagging
 
 Wrapping up the investigation (README future work: model card / writeup, and

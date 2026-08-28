@@ -387,6 +387,16 @@
       real photos across 99 of 144 classes, with the model overfitting to the
       common times in that small set. The next lever is more real
       photographs or a photorealistic renderer, not more training tricks.</div>
+    <h3>Can you at least tell when to trust it?</h3>
+    <p>On the synthetic data, yes — the model is already well calibrated
+      (expected calibration error 0.002), so a confidence threshold cleanly
+      separates safe predictions from risky ones. On real photos the
+      synthetic-only model's confidence is <em>anti-informative</em>: its most
+      confident real predictions are its <em>least</em> accurate. Fine-tuning on
+      real data repairs the ranking — the top ~12% of real predictions by
+      confidence are ~86% correct — even though the absolute numbers stay
+      overconfident. Temperature scaling can't close that gap; it's domain
+      shift, not a scaling error.</p>
   </section>
 
   <section>

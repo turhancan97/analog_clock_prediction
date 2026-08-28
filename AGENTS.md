@@ -27,8 +27,9 @@ Repo layout: `scripts/` holds every Python entry point (`train.py`,
 `generate_readme_figures.py`, `evaluate_real_photos.py`,
 `characterize_rotation_brittleness.py`, `rotation_range_sweep.py`,
 `backbone_ablation.py`, `build_real_manifest.py`, `flag_suspects.py`
-[confidence-based dataset-defect flagging], `generate_brand_assets.py`) and
-the Slurm job files;
+[confidence-based dataset-defect flagging], `calibration.py` [reliability /
+ECE / temperature scaling / selective prediction], `generate_brand_assets.py`)
+and the Slurm job files;
 `train.py` takes `--backbone` (efficientnetb3 default / efficientnetb0 /
 mobilenetv3small / resnet50v2 / simplecnn), `--head` (softmax default /
 circular = (sin,cos) angle regression), `--seed`, `--rotation-factor`
@@ -133,6 +134,12 @@ These are documented at length in `README.md`; the short version:
   located hand, not lost localization. Real-photo confidence (0.205, see
   below) is markedly lower than anything in this sweep, suggesting the
   real-photo failure isn't pure rotation confusion.
+- **Calibration** (2026-08-28, `scripts/calibration.py`): well calibrated on
+  synthetic (ECE 0.002, temperature T≈1.07). On real photos the
+  synthetic-only model's confidence is *anti-informative* — p≥0.8 real
+  predictions are 0% correct. The real-mix checkpoint is very overconfident
+  (ECE 0.48) but its confidence *ranks* real predictions usefully (p≥0.99 →
+  86% correct). Temperature scaling can't fix real-photo ECE — domain shift.
 - Consequently **geometric test-time augmentation makes things worse**, measured.
   Don't reach for it.
 - The `11-10` class was the single biggest error source in the released model

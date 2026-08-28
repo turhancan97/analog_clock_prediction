@@ -228,10 +228,15 @@ guidance.
   checkpoint on every axis, 99.82% dataset-wide). This is now the default;
   `clock_model_rot54_s0.keras` is the default checkpoint. Untested past
   ±54° and against real photos (see first item).
-- **Confidence calibration.** All accuracy figures so far are top-1/top-5,
-  not calibration — whether p=0.9 actually means ~90% correct. Relevant if
-  the confidence score is ever used to decide when to trust a prediction vs.
-  fall back to a human (e.g. for the real-photo axis above).
+- ~~**Confidence calibration.**~~ **Done (2026-08-28):**
+  `scripts/calibration.py` (reliability diagram, ECE, temperature scaling,
+  selective-prediction table). Findings: on synthetic data the model is
+  already well calibrated (ECE 0.002, T≈1.07; p≥0.9 → 100% correct). On real
+  photos the synthetic-only model's confidence is *worse than useless* —
+  its p≥0.8 predictions are 0% accurate. Fine-tuning on real data fixes the
+  confidence *ranking* (top ~12% by confidence are 86% correct) but not the
+  absolute miscalibration — temperature scaling can't, it's domain shift.
+  See `CHANGELOG.md`.
 - **Model size / deployment.** EfficientNetB3 at 150×150 is a fairly heavy
   backbone for a 144-way classification task this constrained. A backbone
   ablation (2026-08-27, `scripts/train_backbone_ablation.slurm`, see

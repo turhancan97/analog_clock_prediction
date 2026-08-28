@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tock — analog clock reading</title>
+<meta name="description" content="A CNN that reads analog clocks to the nearest five minutes — demo, case study, and brand.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --blue: #3a7eab; --blue-ink: #2f6a91; --red: #cf4832;
+    --ground: #f5f6f8; --surface: #ffffff; --raise: #eef1f3;
+    --ink: #23292b; --ink-soft: #576067; --hair: #e0e3e6; --band: #14181b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0f1214; --surface: #171b1e; --raise: #1e2327;
+      --ink: #e8eaeb; --ink-soft: #99a1a6; --hair: #262b2f;
+      --blue-ink: #6bb0d6; --band: #0c0f11;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    display: flex; align-items: center; justify-content: center; min-height: 100vh;
+  }
+  main { max-width: 34rem; padding: clamp(1.5rem, 6vw, 3rem); width: 100%; }
+  .lockup { display: block; width: 12rem; height: auto; margin-bottom: 2rem; }
+  h1 {
+    font-family: "Instrument Serif", Georgia, serif; font-weight: 400;
+    font-size: clamp(2rem, 1.5rem + 2.4vw, 3rem); line-height: 1.04;
+    margin: 0 0 .6rem; text-wrap: balance;
+  }
+  .lede { color: var(--ink-soft); margin: 0 0 2.25rem; }
+  .links { display: flex; flex-direction: column; gap: .6rem; }
+  a.card {
+    display: flex; align-items: baseline; gap: .9rem;
+    background: var(--surface); border: 1px solid var(--hair); border-radius: 12px;
+    padding: 1rem 1.15rem; text-decoration: none; color: var(--ink);
+    transition: border-color .12s, transform .12s;
+  }
+  a.card:hover { border-color: var(--blue); transform: translateX(2px); }
+  a.card .t { font-weight: 600; }
+  a.card .d { color: var(--ink-soft); font-size: .9rem; }
+  a.card .go {
+    margin-left: auto; align-self: center; color: var(--blue-ink);
+    font-family: "IBM Plex Mono", monospace;
+  }
+  footer {
+    margin-top: 2rem; font-family: "IBM Plex Mono", monospace;
+    font-size: .8rem; color: var(--ink-soft);
+  }
+  footer a { color: var(--blue-ink); }
+</style>
+</head>
+<body>
+<main>
+  <svg class="lockup" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 392 120" role="img" aria-label="Tock">
+    <g transform="translate(60,60) scale(0.95) translate(-60,-60)">
+      <g fill="none" stroke-linejoin="round">
+        <path d="M60,18 L81,23.63 L96.37,39 L102,60 L96.37,81 L81,96.37 L60,102 L39,96.37 L23.63,81 L18,60 L23.63,39 L39,23.63 Z" stroke="#9aa1a4" stroke-width="1.8"/>
+        <path d="M60,18 L96.37,39 L96.37,81 L60,102 L23.63,81 L23.63,39 Z" stroke="#c3c6c8" stroke-width="1.5"/>
+      </g>
+      <g fill="#8b9296"><circle cx="81" cy="23.63" r="3.9"/><circle cx="96.37" cy="39" r="3.9"/><circle cx="96.37" cy="81" r="3.9"/><circle cx="81" cy="96.37" r="3.9"/><circle cx="39" cy="96.37" r="3.9"/><circle cx="23.63" cy="81" r="3.9"/><circle cx="23.63" cy="39" r="3.9"/><circle cx="39" cy="23.63" r="3.9"/></g>
+      <g fill="#5f676b"><circle cx="60" cy="18" r="4.6"/><circle cx="102" cy="60" r="4.6"/><circle cx="60" cy="102" r="4.6"/><circle cx="18" cy="60" r="4.6"/></g>
+      <path d="M60,60 L39.52,45.66" fill="none" stroke="#3a7eab" stroke-width="7.5" stroke-linecap="round"/>
+      <path d="M60,60 L91.18,42" fill="none" stroke="#cf4832" stroke-width="7.5" stroke-linecap="round"/>
+      <circle cx="60" cy="60" r="5.2" fill="currentColor"/>
+    </g>
+    <g transform="translate(148,0)" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="11">
+      <path d="M6,30 L60,30 M33,30 L33,96"/>
+      <circle cx="94" cy="66" r="21.5" stroke="#3a7eab"/>
+      <path d="M162.7,49.65 A21.5,21.5 0 1 0 162.7,82.35"/>
+      <path d="M186,25 L186,96 M186,66 L211,43 M186,66 L214,96"/>
+    </g>
+  </svg>
+
+  <h1>Reading analog clocks with a CNN</h1>
+  <p class="lede">A 12-hour dial &rarr; one of 144 classes, every five minutes.
+    99.8% on synthetic renders; the interesting part is everything checked
+    before that number could be trusted.</p>
+
+  <nav class="links">
+    <a class="card" href="demo.html">
+      <span><span class="t">Try it</span><br><span class="d">Drop a clock face, read it in your browser</span></span>
+      <span class="go">&rarr;</span>
+    </a>
+    <a class="card" href="case-study.html">
+      <span><span class="t">Case study</span><br><span class="d">The rotation cliff, the dataset defects, the real-photo wall</span></span>
+      <span class="go">&rarr;</span>
+    </a>
+    <a class="card" href="branding/brand-sheet.html">
+      <span><span class="t">Brand</span><br><span class="d">Tock — mark, palette, logo files</span></span>
+      <span class="go">&rarr;</span>
+    </a>
+  </nav>
+
+  <footer>
+    <a href="https://github.com/turhancan97/analog_clock_prediction">source &amp; changelog on GitHub</a>
+  </footer>
+</main>
+</body>
+</html>

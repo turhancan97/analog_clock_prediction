@@ -2,6 +2,21 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-28 — GitHub Pages
+
+`docs/` is published at **https://turhancan97.github.io/analog_clock_prediction/**
+(source: `main` / `/docs`). The Pages *site* is public even though the repo
+is private.
+
+- `docs/index.html` — a small Tock-branded hub (demo / case study / brand).
+- `docs/.nojekyll` — serve `docs/` as-is, no Jekyll processing.
+- The Artifact pages (`demo.html`, `case-study.html`, `branding/brand-sheet.html`)
+  gained a `<!doctype html>` + charset + viewport prolog so they render
+  correctly as standalone Pages files (not just inside the Artifact wrapper).
+  Verified the Artifact publish still accepts the prolog.
+- README links now point at the live Pages URLs (the raw `docs/*.html` paths
+  don't render on github.com).
+
 ## 2026-08-28 — browser inference demo (`docs/demo.html`)
 
 A self-contained Artifact that runs the model client-side: drop a clock face,

@@ -20,6 +20,13 @@ histogram, with any offset of >= --cluster hits called out as systematic.
     python scripts/flag_suspects.py --split test
     python scripts/flag_suspects.py --split all --csv suspects.csv
 
+Real-photo splits (real-test / real-train / real-all) score against the
+real_data/ manifest instead -- use it with a model that is actually competent
+on real photos (models/clock_realism_realmix.keras) to audit those labels:
+
+    python scripts/flag_suspects.py --split real-all \\
+        --model models/clock_realism_realmix.keras --min-err 20
+
 Works with either head (softmax or the circular regression head); low-conf is
 skipped for the regression head, which has no probability.
 """
@@ -42,14 +49,30 @@ def _minute(label):
 
 
 def _listing(split):
-    """(path, class_name) for every image in the split(s), in class_names() order."""
-    names = cm.class_names()
+    """[(path, class_name, exact_time_str)] for every image in the split(s).
+
+    Synthetic splits (train/valid/test/all) come from data/<split>/<class>/.
+    Real splits (real-test / real-train / real-all) come from the real-photo
+    manifest, where `class_name` is the 5-minute-rounded label and the exact
+    time is the un-rounded ground truth -- so a confident-wrong flag on a real
+    photo can be eyeballed against what the label actually claims."""
+    names = set(cm.class_names())
+    if split.startswith("real-"):
+        import pandas as pd
+        df = pd.read_csv(cm.REAL_MANIFEST)
+        want = split[len("real-"):]
+        if want != "all":
+            df = df[df["split"] == want]
+        return [(str(cm.REPO_DIR / r.path), r.label,
+                 f"{int(r.hour) % 12 or 12}:{int(r.minute):02d}")
+                for r in df.itertuples() if r.label in names]
+
     splits = ("train", "valid", "test") if split == "all" else (split,)
     rows = []
     for sp in splits:
-        for cls in names:
+        for cls in sorted(names):
             for p in sorted((cm.DATA_DIR / sp / cls).glob("*.jpg")):
-                rows.append((str(p), cls))
+                rows.append((str(p), cls, cm.label_to_time(cls)))
     return rows
 
 
@@ -63,7 +86,8 @@ def _decode(path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--split", default="test",
-                    choices=["train", "valid", "test", "all"])
+                    choices=["train", "valid", "test", "all",
+                             "real-test", "real-train", "real-all"])
     ap.add_argument("--model", default=None)
     ap.add_argument("--low-conf", type=float, default=0.15)
     ap.add_argument("--high-conf", type=float, default=0.55)
@@ -81,8 +105,11 @@ def main():
     rows = _listing(args.split)
     if not rows:
         sys.exit(f"no images found for split={args.split}")
-    paths = [p for p, _ in rows]
-    y_true = np.array([names.index(c) for _, c in rows])
+    paths = [p for p, _, _ in rows]
+    exact = [e for _, _, e in rows]
+    y_true = np.array([names.index(c) for _, c, _ in rows])
+    rounded_off = args.split.startswith("real-")   # label != exact time
+    rel = lambda p: Path(p).resolve().relative_to(cm.REPO_DIR)
     print(f"scoring {len(paths)} images (split={args.split})")
 
     ds = (tf.data.Dataset.from_tensor_slices(paths)
@@ -116,9 +143,12 @@ def main():
         for i in order[:args.limit]:
             c = f"p={conf[i]:.3f}  " if is_softmax else ""
             mark = " " if wrong[i] else "*"   # * = prediction actually matches the label
+            exact_note = (f"  (exact {exact[i]})"
+                          if rounded_off and exact[i] != cm.label_to_time(names[y_true[i]])
+                          else "")
             print(f"  {mark} {cm.label_to_time(names[y_true[i]]):>5} -> "
                   f"{cm.label_to_time(names[y_pred[i]]):>5}  {c}"
-                  f"{abserr[i]:>3.0f} min  {Path(paths[i]).relative_to(cm.DATA_DIR)}")
+                  f"{abserr[i]:>3.0f} min  {rel(paths[i])}{exact_note}")
         if len(idx) > args.limit:
             print(f"  ... and {len(idx) - args.limit} more")
 
@@ -133,25 +163,23 @@ def main():
         hist = Counter(int(signed[i]) for i in cwrong)
         print(f"\n{'=' * 72}\nconfident-wrong by signed offset (minutes)\n{'=' * 72}")
         for off, n in sorted(hist.items(), key=lambda kv: -kv[1]):
-            tag = "  <-- systematic (rendering-defect signature)" if n >= args.cluster else ""
+            tag = "  <-- systematic (rendering defect / label error / model bias)" \
+                if n >= args.cluster else ""
             print(f"  {off:+5d} min : {n:3d}{tag}")
 
     flagged = sorted(set(low.tolist()) | set(cwrong.tolist()))
     if args.csv:
         import csv
+        low_set, cw_set = set(low.tolist()), set(cwrong.tolist())
         with open(args.csv, "w", newline="") as fh:
             w = csv.writer(fh)
-            w.writerow(["path", "true", "pred", "conf", "abs_err_min",
+            w.writerow(["path", "label", "exact", "pred", "conf", "abs_err_min",
                         "signed_off_min", "flag"])
             for i in flagged:
-                flags = []
-                if i in set(low.tolist()):
-                    flags.append("low-conf")
-                if i in set(cwrong.tolist()):
-                    flags.append("confident-wrong")
+                flags = (["low-conf"] if i in low_set else []) + \
+                        (["confident-wrong"] if i in cw_set else [])
                 w.writerow([
-                    Path(paths[i]).relative_to(cm.DATA_DIR), names[y_true[i]],
-                    names[y_pred[i]],
+                    rel(paths[i]), names[y_true[i]], exact[i], names[y_pred[i]],
                     f"{conf[i]:.4f}" if is_softmax else "",
                     int(abserr[i]), int(signed[i]), "+".join(flags)])
         print(f"\nwrote {len(flagged)} flagged rows to {args.csv}")

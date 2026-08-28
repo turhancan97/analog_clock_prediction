@@ -27,9 +27,11 @@ Repo layout: `scripts/` holds every Python entry point (`train.py`,
 `generate_readme_figures.py`, `evaluate_real_photos.py`,
 `characterize_rotation_brittleness.py`, `rotation_range_sweep.py`,
 `backbone_ablation.py`, `build_real_manifest.py`, `flag_suspects.py`
-[confidence-based dataset-defect flagging], `calibration.py` [reliability /
-ECE / temperature scaling / selective prediction], `generate_brand_assets.py`)
-and the Slurm job files;
+[confidence-based dataset-defect / label-error flagging; `--split real-*`
+audits the real-photo labels], `calibration.py` [reliability / ECE /
+temperature scaling / selective prediction], `gradcam_real.py` [default vs
+real-mix attention on real photos], `generate_brand_assets.py`) and the
+Slurm job files;
 `train.py` takes `--backbone` (efficientnetb3 default / efficientnetb0 /
 mobilenetv3small / resnet50v2 / simplecnn), `--head` (softmax default /
 circular = (sin,cos) angle regression), `--seed`, `--rotation-factor`
@@ -214,6 +216,17 @@ These are documented at length in `README.md`; the short version:
   Realism aug alone did nothing. Now data-bound. **Never train on the
   57-photo real test split** — the manifest builder and `--real-mix` only
   touch `split=="train"`; keep it that way.
+- **The `vctorsuarezvara` real-photo labels are unreliable** (2026-08-28
+  audit via `flag_suspects.py --split real-*`): its `label.csv` is by row
+  index and spot-checks turn up plain wrong times (e.g. `Images/19.jpg`
+  labelled 12:03, shows ~6:05). `kongaskristjan` (filename labels) is fine.
+  So the 19% real number is contaminated — the test split is ~58%
+  `vctorsuarezvara`. A `kongaskristjan`-only re-run would be the clean
+  number; the qualitative story (real data helps, data-bound) is unchanged.
+- **Fine-tuning on real data changed *where* the model looks** (2026-08-28,
+  `gradcam_real.py`): Grad-CAM focus (mass in hottest 10% of pixels) 0.26 →
+  0.36, tighter on 72% of real photos — from wandering over the bezel to
+  locking on the hub/hands, though partly toward a common-time prior.
   The 99.99%-real-accuracy figure on the synthetic set (above) says nothing
   about real-world performance; don't cite it as if it does.
 

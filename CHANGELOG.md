@@ -2,6 +2,47 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-28 — real-photo analysis: label audit + Grad-CAM
+
+Two cheap analyses on the real-photo work, using existing tooling.
+
+### Label audit (`flag_suspects.py --split real-*`)
+
+`flag_suspects.py` gained real-manifest splits (`real-test` / `real-train` /
+`real-all`). Run with the real-mix checkpoint (the only model competent on
+real photos) it surfaces confident disagreements with the manifest label.
+
+- **The `vctorsuarezvara` labels (103 photos, from its `label.csv` by row
+  index) are unreliable.** Spot-checking flagged images: `Images/19.jpg` is
+  labelled 12:03 but shows ~6:05; `Images/20.jpg` is labelled 2:20 but shows
+  ~4:00. The errors are not a consistent offset (no row-misalignment to
+  undo) — just noisy labels.
+- **The `kongaskristjan` labels (92 photos, encoded in the filename) check
+  out** — spot-checked flags there are genuine model errors on hard photos,
+  not label errors.
+- **Consequence:** the real-data fine-tune (2026-08-28 above) mixed in ~100
+  partly-mislabelled photos, and the 57-image real test split is ~58%
+  `vctorsuarezvara`, so the 19% real-test number is contaminated in an
+  unknown direction. The qualitative conclusion (real data helps; still
+  data-bound) stands. A clean re-run on `kongaskristjan`-only, or a
+  re-labelling pass on `vctorsuarezvara`, would be the fix.
+
+### Grad-CAM: did fine-tuning change where it looks? (`gradcam_real.py`)
+
+Grad-CAM on the 57 real test photos for the default vs. real-mix checkpoints
+(both EfficientNet-B3, `top_activation`).
+
+- **Yes, decisively.** Heatmap focus (fraction of Grad-CAM mass in the
+  hottest 10% of pixels): default **0.262 ± 0.10**, real-mix **0.357 ± 0.14**
+  — more focused on **72%** of photos.
+- Qualitatively: the synthetic-only model's attention wanders over the
+  bezel, background and off-dial regions; the fine-tuned model locks a tight
+  hot spot on the hub / hand region.
+- Caveat: that tighter attention is partly a learned prior toward the common
+  training times (10:10, ~11:xx) — it commits, but sometimes to the prior
+  rather than the actual hands. Consistent with the overfitting seen in the
+  fine-tune results. Figure: `docs/images/gradcam_real.png`.
+
 ## 2026-08-28 — confidence calibration
 
 README future work: "is p = 0.9 actually ~90% correct?" `scripts/calibration.py`

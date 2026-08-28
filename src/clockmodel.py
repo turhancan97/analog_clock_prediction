@@ -33,12 +33,18 @@ def output_to_class_idx(preds):
                       NUM_CLASSES)
     raise ValueError(f"unexpected model output width {preds.shape[-1]}")
 
-# Best checkpoint measured so far (2026-08-23): rotation-aug + 80-epoch
-# fine-tune, 99.77% on the full dataset vs the released time-99.68.h5's
-# 99.57% -- see CHANGELOG.md. Gitignored like all *.keras artifacts; falls
-# back to the released checkpoint if it isn't present (e.g. fresh clone).
-DEFAULT_MODEL = MODELS_DIR / "clock_model_unfrozen_aug_80ep.keras"
-if not DEFAULT_MODEL.exists():
+# Best checkpoint measured so far (2026-08-28): EfficientNetB3, seed 0, with
+# +/-54 deg RandomRotation augmentation (--rotation-factor 0.15). 99.82% on
+# the full dataset and robust across the entire +/-90 deg rotation sweep, vs
+# the +/-10.8 deg predecessor's 99.77% and +/-11 deg plateau -- see
+# CHANGELOG.md 2026-08-28. Gitignored like all *.keras artifacts; falls back
+# through the previous default to the released checkpoint on a fresh clone.
+for _candidate in ("clock_model_rot54_s0.keras",
+                   "clock_model_unfrozen_aug_80ep.keras"):
+    DEFAULT_MODEL = MODELS_DIR / _candidate
+    if DEFAULT_MODEL.exists():
+        break
+else:
     DEFAULT_MODEL = DATA_DIR / "time-99.68.h5"
 
 

@@ -130,6 +130,11 @@ def main():
                     help="softmax = 144-way; circular = (sin, cos) angle regression")
     ap.add_argument("--seed", type=int, default=None,
                     help="set for reproducible weights/augmentation/shuffling")
+    ap.add_argument("--rotation-factor", type=float, default=0.15,
+                    help="RandomRotation factor (fraction of 2pi; 0.15 = +/-54 deg). "
+                         "0.15 is the default -- it widens the rotation-robust "
+                         "plateau to the full +/-90 deg sweep at no upright cost "
+                         "(CHANGELOG 2026-08-28). 0.03 = +/-10.8 deg was the old default.")
     ap.add_argument("--out", default=str(cm.MODELS_DIR / "clock_model.keras"))
     ap.add_argument("--freeze-backbone", action="store_true",
                     help="train only the head (much faster, lower ceiling)")
@@ -143,7 +148,7 @@ def main():
 
     # Augment layers expect raw [0, 255]; input scaling lives inside the model.
     augment = keras.Sequential([
-        keras.layers.RandomRotation(0.03, fill_mode="nearest"),
+        keras.layers.RandomRotation(args.rotation_factor, fill_mode="nearest"),
         keras.layers.RandomZoom(0.05, fill_mode="nearest"),
         keras.layers.RandomTranslation(0.05, 0.05, fill_mode="nearest"),
     ], name="augment")
@@ -164,6 +169,7 @@ def main():
                         head=args.head, trainable_backbone=not args.freeze_backbone)
     model.summary()
     print(f"\nbackbone: {args.backbone}   head: {args.head}   "
+          f"rotation_factor: {args.rotation_factor}   "
           f"params: {model.count_params():,}")
 
     model.fit(

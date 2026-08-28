@@ -13,7 +13,7 @@ data/
   clocks.csv            manifest: class index, filepaths, labels, data set
   time-99.68.h5         released pretrained EfficientNetB3, Keras 2.8, Aug 2022
 models/                 locally trained checkpoints; gitignored
-  clock_model_unfrozen_aug_80ep.keras   default (see below), better than time-99.68.h5
+  clock_model_rot54_s0.keras            default (see below): ±54° rotation-aug, 99.82% dataset
 src/clockmodel.py       class labels, model loading, preprocessing
 scripts/
   predict.py             read the time off given image(s)
@@ -25,10 +25,11 @@ notebooks/
   eda_attention.ipynb     dataset EDA + Grad-CAM: where the model looks
 ```
 
-`clockmodel.load_model()` defaults to `models/clock_model_unfrozen_aug_80ep.keras`
-if present, falling back to `data/time-99.68.h5` otherwise (e.g. on a fresh
-clone before you've trained your own). Pass `--model` to any script to
-override. All commands below assume you're running from the repo root.
+`clockmodel.load_model()` defaults to `models/clock_model_rot54_s0.keras` if
+present, falling back through `clock_model_unfrozen_aug_80ep.keras` to
+`data/time-99.68.h5` (e.g. on a fresh clone before you've trained your own).
+Pass `--model` to any script to override. All commands below assume you're
+running from the repo root.
 
 ## Usage
 
@@ -53,11 +54,14 @@ so feed it raw float `[0, 255]`; do not scale beforehand.
 `time-99.68.h5` (released): **99.38%** top-1 on both test and valid (99.86%
 top-5, mean error 1.1 min). Consistent with the `99.68` in the filename.
 
-`clock_model_unfrozen_aug_80ep.keras` (default, locally trained with rotation
-augmentation): **99.58%** top-1 test (99.86% top-5, mean error 0.7 min); on
-the full 14,400-image dataset, 99.77% vs the released model's 99.57%, with
-errors spread across many classes rather than concentrated in one. See
-`CHANGELOG.md` (2026-08-23 entries) for the full experiment.
+`clock_model_rot54_s0.keras` (default, locally trained with ±54° rotation
+augmentation, `--rotation-factor 0.15`): **99.72%** top-1 test (99.86% top-5,
+mean error 0.5 min); on the full 14,400-image dataset, **99.82%** (26 errors)
+vs the released model's 99.57%, errors spread across many classes. It is also
+**rotation-robust across the full ±90° test-time sweep** — see the rotation
+section below and `CHANGELOG.md` (2026-08-28). The ±10.8° predecessor
+`clock_model_unfrozen_aug_80ep.keras` scored 99.58% test / 99.77% dataset
+(`CHANGELOG.md` 2026-08-23).
 
 ![Full-dataset accuracy by checkpoint](docs/images/checkpoint_accuracy.png)
 
@@ -87,13 +91,13 @@ images confirms they really are 11:10 — mostly a model weakness, not a bad
 label (retraining fixes all but one instance of it — see `DATASET.md`, which
 turned out to be a rendering defect, not the model).
 
-### Known failure mode (default model, `clock_model_unfrozen_aug_80ep.keras`)
+### Known failure mode
 
-Of this model's 33 dataset-wide errors, only **1 is a genuine model
-error** (`11:25 -> 10:55`, 30 min off). The other 32 are two dataset
+Of the default model's 26 dataset-wide errors, almost all are two dataset
 rendering defects — a blank dial with no hands, and hands drawn at exactly
 ±3h15m from the folder's labeled time — see `DATASET.md` caveats. Real
-accuracy is closer to **99.99%**.
+accuracy is closer to **99.97%**. (The ±10.8° predecessor had 33 errors,
+32 of them the same defects.)
 
 ![Dataset rendering defects: normal render, blank dial, and shifted hands](docs/images/dataset_defects.png)
 
@@ -117,39 +121,47 @@ defect produces diffuse, unfocused attention with low confidence instead; on
 Every accuracy figure above is on synthetic, upright, centered,
 exact-5-minute-mark renders. Tested against 92 real clock photos
 (`kongaskristjan/real-clocks`, CC0) with `scripts/evaluate_real_photos.py`:
-**5.4% top-1 accuracy** (vs. 99.58% synthetic), mean error 176 minutes, mean
+**5.4% top-1 accuracy** (vs. 99.7% synthetic), mean error 176 minutes, mean
 confidence on its own top-1 guess just 0.205. Errors are spread across every
 error magnitude rather than one clean systematic offset — this looks like
 genuine confusion on out-of-distribution input, consistent with the
 rotation-brittleness finding above, not a single fixable bug. See
 `DATASET.md` ("Real-photo test set") for how to reproduce and
-`CHANGELOG.md` (2026-08-24) for the full diagnosis.
+`CHANGELOG.md` (2026-08-24) for the full diagnosis. (Measured on the
+±10.8° checkpoint; worth re-running against the ±54° default now that
+rotation robustness is much wider — see future work.)
 
 ![Real-photo predictions: six best and six worst](docs/images/real_photo_predictions.png)
 
-## The rotation-brittleness cliff, characterized
+## Rotation robustness follows the training augmentation range
 
-`scripts/characterize_rotation_brittleness.py` sweeps rotation angle
-(-90° to +90°) over 144 test images for both checkpoints. The default
-checkpoint (trained with `RandomRotation(0.03)` = **±10.8°**) has a genuine
-flat ~99% accuracy plateau matching that range almost exactly, then a sharp
-cliff into a **0%-accuracy dead zone from ~30° to ~60°**, recovering to ~99%
-only at exactly ±90°. The released checkpoint (no rotation augmentation) has
-no plateau at all — just a narrow, smoothly-decaying peak around 0°.
-**Training-time rotation augmentation doesn't teach general rotation
-robustness — it widens the safe range to match the literal augmentation
-range and no further.**
+`scripts/characterize_rotation_brittleness.py` sweeps test-time rotation
+(-90° to +90°) over 144 test images. Each checkpoint holds a flat ~99%
+accuracy plateau across roughly its **literal training `RandomRotation`
+range**, then falls off a cliff into a high-confidence 0%-accuracy dead zone.
+`scripts/rotation_range_sweep.py` measured this across four training ranges
+(`CHANGELOG.md` 2026-08-28):
 
-![Rotation-brittleness cliff: accuracy vs. angle for both checkpoints](docs/images/rotation_cliff.png)
+| training aug | upright dataset acc | ≥95% robust plateau |
+|---|---|---|
+| ±10.8° (`f0.03`) | 99.71% | [−10°, +10°] |
+| ±21.6° (`f0.06`) | 99.71% | [−20°, +30°] |
+| ±36.0° (`f0.10`) | 99.67% | [−30°, +90°] |
+| **±54.0° (`f0.15`, current default)** | **99.82%** | **[−90°, +90°] — the whole sweep** |
 
-Confidence stays high (0.4–0.99) throughout the dead zone — the model
-doesn't know it's wrong — and Grad-CAM stays sharply focused on the (rotated)
-hands even on confidently-wrong dead-zone predictions, unlike the diffuse
-attention seen on the blank-dial dataset defect above. This is confident
-*misreading* of a correctly-located hand position, not lost localization —
-consistent with exact invariance only at 90°/180°/270°, the only
-out-of-distribution orientations with zero interpolation artifacts. See
-`CHANGELOG.md` (2026-08-24) for the full diagnosis.
+Widening the augmentation range widens the robust plateau to match, **at no
+upright-accuracy cost** — the ±54° model is both the most accurate and the
+most rotation-robust checkpoint trained. The released no-aug checkpoint has
+no plateau at all.
+
+![Does wider rotation aug widen the robust plateau?](docs/images/rotation_range_sweep.png)
+
+On the narrow-augmentation checkpoints, confidence stays high (0.4–0.99)
+throughout the dead zone — the model doesn't know it's wrong — and Grad-CAM
+stays sharply focused on the (rotated) hands even on confidently-wrong
+predictions, unlike the diffuse attention seen on the blank-dial dataset
+defect above. This is confident *misreading* of a correctly-located hand
+position, not lost localization. See `CHANGELOG.md` (2026-08-24, 2026-08-28).
 
 ![Grad-CAM at increasing rotation angles: attention stays hand-focused even when wrong](docs/images/rotation_gradcam.png)
 
@@ -176,13 +188,15 @@ guidance.
 
 - **Close the real-photo gap.** Now measured, not just predicted (see
   "Generalization to real photos" above): 5.4% top-1 on real clock photos vs.
-  99.58% synthetic. The 92-image sample here has no angle/lighting/dial-style
+  ~99.7% synthetic — **though that was measured on the ±10.8° checkpoint;
+  re-run `scripts/evaluate_real_photos.py` against the ±54° default first**,
+  since much wider rotation robustness is exactly the kind of thing that
+  might move it. The 92-image sample here has no angle/lighting/dial-style
   labels, so it can't isolate which factor dominates the failure — a bigger,
   labeled real-photo set (`vctorsuarezvara/real-images-of-analogclocks` is
-  untried) would help. Likely needs its own data collection or realistic
-  augmentation (perspective, lighting, hand-drawing variance) rather than
-  more epochs on the current synthetic set, which this result suggests
-  wouldn't transfer anyway.
+  untried) would help. Likely still needs its own data collection or
+  realistic augmentation (perspective, lighting, hand-drawing variance)
+  rather than more epochs on the current synthetic set.
 - **Model card / public-facing writeup.** The findings here (rotation
   brittleness despite dial-reading invariance, the two dataset rendering
   defects and how Grad-CAM helped tell them apart from real model error, the
@@ -196,15 +210,12 @@ guidance.
   confidently-wrong predictions could auto-surface defects like these
   instead of hand-diagnosing per-class each time, and would generalize to
   auditing other synthetic datasets built the same way.
-- **Widen the rotation-augmentation range.** Now that the cliff is
-  characterized (above), the plateau's edges track the literal training
-  augmentation range almost exactly — training with a wider `RandomRotation`
-  factor should, per that finding, extend the plateau rather than just
-  soften it. Untested how wide it can go before hurting upright-image
-  accuracy or blowing up training time/convergence, and whether it would
-  meaningfully close any of the real-photo gap (the real-photo confidence
-  profile looked different from pure rotation confusion, so this may help
-  less than hoped).
+- ~~**Widen the rotation-augmentation range.**~~ **Done (2026-08-28).**
+  Training at `--rotation-factor 0.15` (±54°) widens the robust plateau to
+  the entire ±90° sweep at no upright-accuracy cost (in fact the best
+  checkpoint on every axis, 99.82% dataset-wide). This is now the default;
+  `clock_model_rot54_s0.keras` is the default checkpoint. Untested past
+  ±54° and against real photos (see first item).
 - **Confidence calibration.** All accuracy figures so far are top-1/top-5,
   not calibration — whether p=0.9 actually means ~90% correct. Relevant if
   the confidence score is ever used to decide when to trust a prediction vs.

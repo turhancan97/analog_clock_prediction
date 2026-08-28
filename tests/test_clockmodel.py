@@ -106,17 +106,18 @@ def test_class_names_does_not_match_csv_class_index_order():
 @requires_model
 @requires_data
 def test_default_checkpoint_test_accuracy_regression():
-    # Locks in the measured accuracy from AGENTS.md/README.md (~99.58% top-1
-    # on the test split for the default checkpoint) so a future change to
-    # preprocessing, class ordering, or model loading gets caught instead of
-    # silently shipping a worse model.
+    # Locks in the measured accuracy from AGENTS.md/README.md (~99.72% top-1
+    # on the test split for the default checkpoint, the +/-54 deg rotation-aug
+    # model from 2026-08-28) so a future change to preprocessing, class
+    # ordering, or model loading gets caught instead of silently shipping a
+    # worse model.
     names = cm.class_names()
     model = cm.load_model()
     ds = cm.make_dataset("test", batch_size=64)
 
     probs = model.predict(ds, verbose=0)
     y_true = np.concatenate([y.numpy().argmax(1) for _, y in ds])
-    y_pred = probs.argmax(1)
+    y_pred = cm.output_to_class_idx(probs)
 
     acc = (y_pred == y_true).mean()
-    assert acc >= 0.99, f"test top-1 accuracy dropped to {acc:.4f} (expected >= 0.99)"
+    assert acc >= 0.995, f"test top-1 accuracy dropped to {acc:.4f} (expected >= 0.995)"

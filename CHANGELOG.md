@@ -2,6 +2,63 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-28 — widening the rotation-augmentation range (new default checkpoint)
+
+README future work: "Widen the rotation-augmentation range." The brittleness
+characterization (2026-08-24) showed the robust-angle plateau's edges track
+the *literal* training `RandomRotation` range. Tested whether widening that
+range widens the plateau, and what it costs.
+
+### Method (job 479269, dgxa100, 1h11m)
+
+EfficientNetB3, softmax, `--seed 0` (the recipe that reproduces the archived
+baseline), trained at four `--rotation-factor` values, then swept over
+test-time rotation with `scripts/rotation_range_sweep.py` (144 test images,
+one per class).
+
+### Results
+
+| training aug | upright dataset top-1 (errors) | >=95% robust plateau |
+|---|---|---|
+| +/-10.8 deg (`f0.03`, old default) | 0.9971 (42) | [-10, +10] deg — cliff to ~0% by +/-30 deg |
+| +/-21.6 deg (`f0.06`) | 0.9971 (42) | [-20, +30] deg |
+| +/-36.0 deg (`f0.10`) | 0.9967 (48) | [-30, +90] deg |
+| **+/-54.0 deg (`f0.15`)** | **0.9982 (26)** | **[-90, +90] deg — robust across the entire sweep** |
+
+- **The plateau edge tracks the training range, confirming 2026-08-24** —
+  and at +/-54 deg the model is rotation-robust everywhere tested.
+- **It is free.** +/-54 deg gave the *best* upright accuracy of any run
+  (0.9982 dataset / 26 errors), beating the previous default's 0.9977. The
+  four residual test misreads are all known dataset defects (+/-195 / +/-280
+  min, blank-dial p~0.07).
+- Training cost flat: all four early-stopped at epoch 32–42, ~15 min each.
+- Aliasing quirks, not the trend: the old default is near-perfect at
+  *exactly* +/-90 deg (learned 90 deg symmetry) but 0% at +/-45 deg; the
+  +/-21.6 deg model has a sharp dip at +/-45 deg.
+
+### Changed
+
+- **`DEFAULT_MODEL` is now `models/clock_model_rot54_s0.keras`** (the `f0.15`
+  checkpoint, copied to a stable name). 0.9982 dataset / 0.9972 test, and
+  rotation-robust to +/-90 deg. Falls back through
+  `clock_model_unfrozen_aug_80ep.keras` to the released `time-99.68.h5` on a
+  fresh clone.
+- **`train.py --rotation-factor` default is now `0.15`** (was `0.03`).
+- `tests/test_clockmodel.py` accuracy-regression threshold raised 0.99 ->
+  0.995 (measured 0.9972 test); the test now decodes via
+  `cm.output_to_class_idx`.
+- `scripts/rotation_range_sweep.py` — new. Sweeps N checkpoints over test-time
+  rotation, plots accuracy vs. angle, reports the >=95% plateau width per
+  model. Figure: `docs/images/rotation_range_sweep.png`.
+- `scripts/train_rotation_range.slurm` — new (job 479269).
+
+### Not done
+
+- `docs/images/rotation_cliff.png` and other figures still show the old
+  default; regenerate when convenient.
+- Whether this helps the real-photo gap (future work #1) is untested — the
+  real-photo failure profile looked like more than rotation.
+
 ## 2026-08-27 — backbone ablation, step 1 of the architecture investigation
 
 The "is EfficientNetB3 the right fit?" question (README future work #6).

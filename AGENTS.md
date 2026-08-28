@@ -8,20 +8,25 @@ Analog clock reading: a 224×224 clock-face image → one of 144 classes (every
 5-minute increment on a 12-hour dial). `data/time-99.68.h5` is the released
 pretrained EfficientNetB3 checkpoint from Aug 2022 (Keras 2.8), 99.38% test
 accuracy. `clockmodel.load_model()` now **defaults to
-`models/clock_model_unfrozen_aug_80ep.keras`** instead (locally trained,
-2026-08-23, 99.77% dataset-wide vs the released model's 99.57% — see the
-table under Maintenance) and falls back to `time-99.68.h5` only if that file
-is missing. Gitignored, so it won't exist on a fresh clone until you run
-`scripts/train_unfrozen_aug_longer.slurm`.
+`models/clock_model_rot54_s0.keras`** (locally trained 2026-08-28:
+EfficientNetB3, seed 0, `--rotation-factor 0.15` = ±54° rotation aug;
+**99.82% dataset-wide / 99.72% test**, and rotation-robust across the full
+±90° sweep — see `CHANGELOG.md` 2026-08-28). Falls back through
+`clock_model_unfrozen_aug_80ep.keras` (the ±10.8° predecessor, 99.77%
+dataset) to the released `time-99.68.h5` on a fresh clone. All `*.keras` are
+gitignored; retrain the default with
+`scripts/train.py --seed 0 --epochs 120 --patience 12` (rotation factor now
+defaults to 0.15).
 
 Repo layout: `scripts/` holds every Python entry point (`train.py`,
 `evaluate.py`, `predict.py`, `compare_full_dataset.py`,
 `generate_readme_figures.py`, `evaluate_real_photos.py`,
-`characterize_rotation_brittleness.py`, `backbone_ablation.py`) and the Slurm
-job files; `train.py` takes `--backbone` (efficientnetb3 default /
-efficientnetb0 / mobilenetv3small / resnet50v2 / simplecnn), `--head`
-(softmax default / circular = (sin,cos) angle regression) and `--seed`, all
-for the architecture investigation — see `CHANGELOG.md` 2026-08-27.
+`characterize_rotation_brittleness.py`, `rotation_range_sweep.py`,
+`backbone_ablation.py`) and the Slurm job files; `train.py` takes
+`--backbone` (efficientnetb3 default / efficientnetb0 / mobilenetv3small /
+resnet50v2 / simplecnn), `--head` (softmax default / circular = (sin,cos)
+angle regression), `--seed`, and `--rotation-factor` (default 0.15 = ±54°
+rotation aug; see `CHANGELOG.md` 2026-08-27 and 2026-08-28).
 `clockmodel.output_to_class_idx()` decodes either head; `evaluate.py` and
 `backbone_ablation.py` are head-agnostic through it;
 `src/clockmodel.py` is the shared library they all import; `models/`
@@ -99,20 +104,20 @@ These are documented at length in `README.md`; the short version:
 
 - The model **reads the dial numerals**, not absolute hand angles — predictions
   are exactly invariant to 90°/180°/270° rotation.
-- It is nonetheless **very brittle to small rotations**: 3° costs ~30 points of
-  accuracy and 6° destroys it entirely, even though rotating a clock does not
-  change the time it shows. Every image in the dataset is upright.
-- **The brittleness cliff is now fully characterized** (2026-08-24,
-  `scripts/characterize_rotation_brittleness.py`, see `CHANGELOG.md`). The
-  default checkpoint (trained with `RandomRotation(0.03)` = **±10.8°**, not
-  the ~5.4° previously written here — that was a units error, corrected now)
-  has a genuine flat ~99% accuracy plateau matching that range almost
-  exactly, then a sharp cliff into a **0%-accuracy dead zone from ~30° to
-  ~60°** (both directions), recovering to ~99% only at exactly ±90°. The
-  released checkpoint (no rotation augmentation) has no plateau at all, just
-  a narrow smoothly-decaying peak. **Conclusion: training-time rotation
-  augmentation doesn't teach general rotation robustness — it widens the
-  safe range to match the literal augmentation range and no further.**
+- Rotation robustness is a function of the **training** `RandomRotation`
+  range, nothing more (2026-08-24 characterization + 2026-08-28 sweep, see
+  `CHANGELOG.md`). Each checkpoint holds ~99% accuracy across roughly its
+  literal training range, then falls off a cliff into a high-confidence
+  0%-accuracy dead zone. Measured plateaus: ±10.8° aug → [-10°, +10°];
+  ±21.6° → [-20°, +30°]; ±36° → [-30°, +90°]; **±54° → the full ±90° sweep**.
+  The released no-aug checkpoint has no plateau at all.
+- **The current default (`clock_model_rot54_s0.keras`, ±54° aug) is
+  rotation-robust across the whole ±90° sweep** and this cost nothing —
+  0.9982 dataset-wide, the best of any checkpoint. The old ±10.8° default
+  (`clock_model_unfrozen_aug_80ep.keras`) is the brittle one: 3° costs ~30
+  points, 6°+ destroys it, recovering only at exactly ±90°.
+- Widening `--rotation-factor` further (past 0.15) is untested; every image
+  in the dataset is still upright, so this is pure augmentation.
   Confidence stays high (0.4–0.99) throughout the dead zone — the model
   doesn't know it's wrong — and Grad-CAM stays sharply hand-focused even on
   wrong dead-zone predictions (unlike the diffuse attention on the
@@ -180,10 +185,13 @@ These are documented at length in `README.md`; the short version:
 - **Does not generalize to real photos at all** (2026-08-24, see
   `CHANGELOG.md`). Tested against 92 real clock photos
   (`kongaskristjan/real-clocks`, `scripts/evaluate_real_photos.py`):
-  **5.4% top-1 accuracy** (vs. 99.58% synthetic), mean error 176 minutes,
+  **5.4% top-1 accuracy** (vs. ~99.7% synthetic), mean error 176 minutes,
   mean confidence on its own top-1 guess just 0.205. Errors are spread
   across every magnitude, not one clean systematic offset — this looks like
   genuine confusion on out-of-distribution input, not a fixable single bug.
+  **Measured on the ±10.8° checkpoint; re-run against the ±54° default**
+  (`clock_model_rot54_s0.keras`) before quoting this again — wider rotation
+  robustness may move it.
   The 99.99%-real-accuracy figure on the synthetic set (above) says nothing
   about real-world performance; don't cite it as if it does.
 
@@ -192,7 +200,7 @@ These are documented at length in `README.md`; the short version:
 - **Verify, don't assume.** Both class-ordering bugs above produced plausible
   code that ran fine and was badly wrong. Any change touching labels,
   preprocessing, or model loading must be checked with
-  `python scripts/evaluate.py --split test` — expect ~0.9958 against the
+  `python scripts/evaluate.py --split test` — expect ~0.9972 against the
   default checkpoint (~0.9938 if you pass `--model data/time-99.68.h5`
   explicitly) — and with `python -m pytest tests/ -v`, which locks down both
   wrong class-ordering alternatives and a test-accuracy floor (see
@@ -215,8 +223,11 @@ something a future session would otherwise have to rediscover the hard way.
 |---|---|---|---|---|
 | `time-99.68.h5` (released) | — | 99.57% | 62 | `11-10`, 46.8% |
 | `clock_model_unfrozen_aug.keras` | 20 | 99.49% | 73 | 4.1% (no dominant class) |
-| `clock_model_unfrozen_aug_80ep.keras` | 80 (stopped ep. 25) | **99.77%** (33 raw errors; **~99.99%**, 1 real error, once the 32 dataset-defect errors are excluded — see above) | **33** | 9.1% (no dominant class) |
+| `clock_model_unfrozen_aug_80ep.keras` | 80 (stopped ep. 25) | 99.77% (33 raw errors; ~99.99% once the 32 dataset-defect errors are excluded) | 33 | 9.1% (no dominant class) |
+| `clock_model_rot54_s0.keras` (**current default**) | 120 (stopped ep. 42) | **99.82%** (26 raw errors; ~99.97% net of defects) | **26** | no dominant class |
 
-`clock_model_unfrozen_aug_80ep.keras` is the best result so far on every axis
-measured. Lives in `models/`, not committed (gitignored `*.keras`); regenerate
-with `scripts/train_unfrozen_aug_longer.slurm`.
+`clock_model_rot54_s0.keras` (EfficientNetB3, seed 0, ±54° rotation aug) is
+the best result on every axis measured *and* rotation-robust across the full
+±90° sweep (2026-08-28). Lives in `models/`, gitignored; regenerate with
+`scripts/train.py --seed 0 --epochs 120 --patience 12` (rotation factor
+defaults to 0.15) or the four-factor `scripts/train_rotation_range.slurm`.

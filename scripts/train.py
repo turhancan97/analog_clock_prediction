@@ -3,6 +3,7 @@
 model's topology); ``--backbone`` swaps in a smaller one for the size/latency
 ablation (see CHANGELOG.md, backbone ablation)."""
 import argparse
+import gc
 import sys
 from pathlib import Path
 
@@ -155,14 +156,16 @@ def main():
         keras.utils.set_random_seed(args.seed)
 
     # Synthetic stream, optionally mixed with oversampled real-photo training
-    # images (both unbatched, shuffled together, then rebatched).
+    # images. Keep the shuffle buffer modest -- it holds *decoded* 150x150x3
+    # images, so a big buffer plus the parallel decode/augment workers is what
+    # OOM-killed the post-fit report on the 2026-08-28 real-gap job.
     train_stream = cm.make_dataset("train", args.batch_size, shuffle=True).unbatch()
     if args.real_mix:
         real_stream = (cm.make_real_dataset("train", args.batch_size, shuffle=True)
                        .unbatch().repeat(args.real_oversample))
         train_stream = train_stream.concatenate(real_stream)
-    train_ds = (train_stream.shuffle(20_000, reshuffle_each_iteration=True)
-                .batch(args.batch_size).prefetch(tf.data.AUTOTUNE))
+    train_ds = (train_stream.shuffle(4096, reshuffle_each_iteration=True)
+                .batch(args.batch_size).prefetch(2))
     valid_ds = cm.make_dataset("valid", args.batch_size)
 
     # Augment layers expect raw [0, 255]; input scaling lives inside the model.
@@ -201,6 +204,8 @@ def main():
     if args.init_weights:
         src = cm.load_model(args.init_weights)
         model.set_weights(src.get_weights())
+        del src
+        gc.collect()
         print(f"initialised weights from {args.init_weights}")
     model.summary()
     print(f"\nbackbone: {args.backbone}   head: {args.head}   "

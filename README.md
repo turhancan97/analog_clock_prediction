@@ -138,9 +138,13 @@ perspective, dial art, lighting and framing, not rotation.
 A second labelled source (`vctorsuarezvara/real-images-of-analogclocks`, 103
 photos) brings the real pool to 195. `scripts/build_real_manifest.py` splits
 it 138 train / 57 test (stratified by hour, seed 0); the test split is held
-out of all training. Closing the gap with realism augmentation
-(`train.py --realism-aug`) and a real-photo mix (`--real-mix`) is in progress
-— see `CHANGELOG.md` (2026-08-24, 2026-08-28) and `DATASET.md`.
+out of all training. **Folding the 138 training photos in and fine-tuning
+from the default checkpoint (`train.py --realism-aug --real-mix
+--init-weights`) roughly triples held-out real accuracy — 7% → 19%, median
+error 165 → 76 min — while synthetic stays at 0.994** (`CHANGELOG.md`
+2026-08-28). Realism augmentation *alone* did nothing. 19% is still not
+usable; the direction (more real data) is validated but the volume isn't
+there. See `CHANGELOG.md` (2026-08-24, 2026-08-28) and `DATASET.md`.
 
 ![Real-photo predictions: six best and six worst](docs/images/real_photo_predictions.png)
 
@@ -197,14 +201,15 @@ guidance.
 
 ## Future work
 
-- **Close the real-photo gap** (in progress). 2.2% top-1 on real photos vs.
-  ~99.7% synthetic; 7.0% on the held-out real test split. Rotation
-  robustness ruled out. Two moves are wired up and scheduled
-  (`scripts/train_real_gap.slurm`): `--realism-aug` (perspective / shear /
-  photometric / blur on top of the ±54° rotation) and `--real-mix` (fold the
-  138 real training photos into the synthetic stream, oversampled), stacked.
-  Still likely limited by real-data volume (195 photos, 99/144 classes) —
-  a larger labelled set or synthetic-realism rendering would go further.
+- **Close the real-photo gap** (partly). Fine-tuning the default with the
+  138 real training photos mixed in gets held-out real top-1 from 7% to 19%
+  (`--realism-aug --real-mix --init-weights`, `CHANGELOG.md` 2026-08-28) —
+  realism augmentation alone did nothing. Now clearly **data-bound**: 195
+  photos over 99/144 classes, with the model overfitting to common times in
+  the training set. The next lever is more labelled real photos (or a
+  photorealistic renderer), not more tuning. Residual errors also include
+  the ±195-min 12-hour-hand ambiguity, which a two-output (hour-angle,
+  minute-angle) head might address.
 - **Model card / public-facing writeup.** The findings here (rotation
   brittleness despite dial-reading invariance, the two dataset rendering
   defects and how Grad-CAM helped tell them apart from real model error, the

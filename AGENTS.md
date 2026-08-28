@@ -198,10 +198,13 @@ These are documented at length in `README.md`; the short version:
   confusion, not a fixable single bug. **Rotation robustness is ruled out as
   the cause** (2026-08-28): the ±54° default scores the same ~2–7% as the
   old ±10.8° checkpoint. The gap is perspective, dial art, lighting, framing.
-  Being worked (README #1): `train.py --realism-aug` (synthetic realism) and
-  `--real-mix` (fold in the 138 real training photos); see `CHANGELOG.md`.
-  **Never train on the 57-photo real test split** — the manifest builder and
-  `--real-mix` only touch `split=="train"`; keep it that way.
+  README #1 progress (2026-08-28): `--realism-aug --real-mix --init-weights`
+  (fine-tune the default with the 138 real training photos mixed in) triples
+  held-out real top-1 to **19%** (median err 76 min) while holding synthetic
+  at 0.994 — checkpoint `models/clock_realism_realmix.keras`, not promoted.
+  Realism aug alone did nothing. Now data-bound. **Never train on the
+  57-photo real test split** — the manifest builder and `--real-mix` only
+  touch `split=="train"`; keep it that way.
   The 99.99%-real-accuracy figure on the synthetic set (above) says nothing
   about real-world performance; don't cite it as if it does.
 

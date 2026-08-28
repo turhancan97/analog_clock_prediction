@@ -35,16 +35,16 @@ export PATH="$PYROOT/nvidia/cuda_nvcc/bin:$PATH"
 DEF=models/clock_model_rot54_s0.keras
 
 run () {  # name  extra-args...
-    OUT="models/clock_$1.keras"
-    echo "======== $1 -> $OUT ========"
-    shift
+    NAME="$1"; shift
+    OUT="models/clock_${NAME}.keras"
+    echo "======== ${NAME} -> $OUT ========"
     $PY scripts/train.py --backbone efficientnetb3 --head softmax --seed 0 \
         --epochs 120 --patience 15 --out "$OUT" "$@"
     echo "---- evaluate.py (synthetic test) ----"
     $PY scripts/evaluate.py --split test --model "$OUT"
     echo "---- evaluate_real_photos.py --split test ----"
     $PY scripts/evaluate_real_photos.py --split test --model "$OUT" \
-        --figure "docs/images/real_photo_predictions_$1.png"
+        --figure "docs/images/real_photo_predictions_${NAME}.png"
 }
 
 # B alone: realism aug, trained fresh.

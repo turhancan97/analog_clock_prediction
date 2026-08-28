@@ -18,7 +18,7 @@ The project has a name and a logo. **Tock** — the tick-*tock* of a clock.
 - Main `README.md` H1 is now "Tock — analog clock reading" with the logo.
   Repo directory name unchanged.
 
-## 2026-08-28 — closing the synthetic→real gap: scaffolding (job pending)
+## 2026-08-28 — closing the synthetic→real gap: real data in training helps, ~3x
 
 README future work #1. Two stacked moves, both wired into `train.py`:
 
@@ -49,18 +49,39 @@ README future work #1. Two stacked moves, both wired into `train.py`:
 - `clockmodel.py`: `nearest_5min_label()`, `make_real_dataset()`,
   `REAL_DATA_DIR`, `REAL_MANIFEST`.
 
-### Baseline to beat (current default, `clock_model_rot54_s0.keras`)
+### Results (job 479364, 2h16m — B3 softmax seed 0, 120-epoch budget)
 
-| | synthetic test | real test (57) | real train (138) |
-|---|---|---|---|
-| top-1 | 0.9972 | **0.070** | 0.014 |
-| mean \|err\| | 0.5 min | 163 min | — |
+| run | synthetic test | real test top-1 (57) | real test median err | within 30 min | conf |
+|---|---|---|---|---|---|
+| baseline (`clock_model_rot54_s0`) | **0.9972** | 0.070 | 165 min | ~0.10 | 0.17 |
+| `realism` (aug only) | 0.9889 | 0.088 | 158 min | 0.19 | 0.25 |
+| **`realism_realmix`** (aug + real-mix, **fine-tuned** from default) | 0.9938 | **0.193** | **76 min** | **0.30** | 0.67 |
+| `realism_realmix_scratch` (same, from ImageNet) | 0.9819 | 0.140 | 105 min | 0.19 | 0.72 |
 
-### Runs (`scripts/train_real_gap.slurm`, pending)
+- **Realism augmentation alone does nothing for real photos** (8.8% ≈ noise
+  vs 7.0% baseline) and costs ~0.8 pt synthetic. The augmented synthetic
+  renders still don't look like photographs.
+- **Folding the 138 real training photos in + fine-tuning from the default
+  is the winner:** real-test top-1 7% → 19.3%, median error 165 → 76 min,
+  within-30-min 10% → 30%, confidence 0.17 → 0.67 — while synthetic holds at
+  0.9938. First thing that has moved the real numbers at all.
+- **Fine-tune beats from-scratch** (19.3% vs 14.0% real, 0.9938 vs 0.9819
+  synthetic). Start from the strong synthetic checkpoint.
+- Still not usable (81% wrong). Residual errors are mostly ±195 min (12h
+  hand ambiguity) and a cluster of "→10:10" predictions — overfitting to
+  common times in the 138-photo set. The direction (more real data) is
+  validated; the volume isn't there yet.
+- **Default checkpoint unchanged.** `realism_realmix` is better on real but
+  0.3 pt worse on synthetic and tuned to this specific 138-photo
+  distribution; not a general-purpose promotion. Kept as
+  `models/clock_realism_realmix.keras` for reference.
 
-`realism` (B alone) · `realism_realmix` (B+A, fine-tuned from the default) ·
-`realism_realmix_scratch` (B+A, trained together from ImageNet). All B3
-softmax seed 0, 120-epoch budget.
+### Fixed
+- `train.py` post-fit report was OOM-killed on the real-mix runs (decoded-
+  image shuffle buffer + the `--init-weights` model held in memory). Shuffle
+  buffer 20k → 4096, `del` the init model, `prefetch(2)`. The run numbers
+  above were unaffected — `train_real_gap.slurm` re-runs `evaluate.py` and
+  `evaluate_real_photos.py` on each saved checkpoint independently.
 
 ## 2026-08-28 — widening the rotation-augmentation range (new default checkpoint)
 

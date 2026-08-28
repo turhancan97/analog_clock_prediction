@@ -46,7 +46,10 @@
   .wrap { max-width: 52rem; margin: 0 auto; padding: clamp(1.1rem, 4vw, 2.5rem); }
 
   header { text-align: center; margin-bottom: 2.25rem; }
-  header svg.mark { width: 3.4rem; height: auto; margin-bottom: .9rem; }
+  header svg.lockup {
+    width: clamp(11rem, 32vw, 15rem); height: auto; margin-bottom: 1.1rem;
+    color: var(--ink);
+  }
   h1 {
     font-family: "Instrument Serif", Georgia, serif; font-weight: 400;
     font-size: clamp(2.1rem, 1.6rem + 2.4vw, 3.4rem); line-height: 1;
@@ -99,10 +102,20 @@
 
   .stage { position: relative; border-radius: 12px; overflow: hidden; background: var(--raise); aspect-ratio: 1; }
   .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-  #heat { opacity: 0; transition: opacity .2s; mix-blend-mode: multiply; }
-  :root[data-theme="dark"] #heat, :root:not([data-theme="light"]) #heat { mix-blend-mode: screen; }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #heat { mix-blend-mode: screen; } }
-  .stage.heaton #heat { opacity: .82; }
+  #img { transition: filter .2s; }
+  #heat { opacity: 0; transition: opacity .2s; }
+  .stage.heaton #img { filter: saturate(.5) brightness(.6); }
+  .stage.heaton #heat { opacity: 1; }
+  .heatkey {
+    font-family: "IBM Plex Mono", monospace; font-size: .72rem;
+    color: var(--ink-soft); margin: .5rem 0 0; display: none;
+    align-items: center; gap: .5rem;
+  }
+  .heatkey.on { display: flex; }
+  .heatkey .grad {
+    height: .55rem; width: 5rem; border-radius: 3px;
+    background: linear-gradient(90deg, rgba(240,190,70,.2), #f0be46, #cf4832);
+  }
 
   .readout .time {
     font-family: "Instrument Serif", Georgia, serif;
@@ -156,16 +169,24 @@
 
 <div class="wrap">
   <header>
-    <svg class="mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" aria-hidden="true">
-      <g fill="none" stroke-linejoin="round">
-        <path d="M60,18 L81,23.63 L96.37,39 L102,60 L96.37,81 L81,96.37 L60,102 L39,96.37 L23.63,81 L18,60 L23.63,39 L39,23.63 Z" stroke="#9aa1a4" stroke-width="1.8"/>
-        <path d="M60,18 L96.37,39 L96.37,81 L60,102 L23.63,81 L23.63,39 Z" stroke="#c3c6c8" stroke-width="1.5"/>
+    <svg class="lockup" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 392 120" role="img" aria-label="Tock">
+      <g transform="translate(60,60) scale(0.95) translate(-60,-60)">
+        <g fill="none" stroke-linejoin="round">
+          <path d="M60,18 L81,23.63 L96.37,39 L102,60 L96.37,81 L81,96.37 L60,102 L39,96.37 L23.63,81 L18,60 L23.63,39 L39,23.63 Z" stroke="var(--ink-soft)" stroke-width="1.8" opacity="0.7"/>
+          <path d="M60,18 L96.37,39 L96.37,81 L60,102 L23.63,81 L23.63,39 Z" stroke="var(--ink-soft)" stroke-width="1.5" opacity="0.45"/>
+        </g>
+        <g fill="var(--ink-soft)" opacity="0.85"><circle cx="81" cy="23.63" r="3.9"/><circle cx="96.37" cy="39" r="3.9"/><circle cx="96.37" cy="81" r="3.9"/><circle cx="81" cy="96.37" r="3.9"/><circle cx="39" cy="96.37" r="3.9"/><circle cx="23.63" cy="81" r="3.9"/><circle cx="23.63" cy="39" r="3.9"/><circle cx="39" cy="23.63" r="3.9"/></g>
+        <g fill="currentColor"><circle cx="60" cy="18" r="4.6"/><circle cx="102" cy="60" r="4.6"/><circle cx="60" cy="102" r="4.6"/><circle cx="18" cy="60" r="4.6"/></g>
+        <path d="M60,60 L39.52,45.66" fill="none" stroke="#3a7eab" stroke-width="7.5" stroke-linecap="round"/>
+        <path d="M60,60 L91.18,42" fill="none" stroke="#cf4832" stroke-width="7.5" stroke-linecap="round"/>
+        <circle cx="60" cy="60" r="5.2" fill="currentColor"/>
       </g>
-      <g fill="#8b9296"><circle cx="81" cy="23.63" r="3.9"/><circle cx="96.37" cy="39" r="3.9"/><circle cx="96.37" cy="81" r="3.9"/><circle cx="81" cy="96.37" r="3.9"/><circle cx="39" cy="96.37" r="3.9"/><circle cx="23.63" cy="81" r="3.9"/><circle cx="23.63" cy="39" r="3.9"/><circle cx="39" cy="23.63" r="3.9"/></g>
-      <g fill="#5f676b"><circle cx="60" cy="18" r="4.6"/><circle cx="102" cy="60" r="4.6"/><circle cx="60" cy="102" r="4.6"/><circle cx="18" cy="60" r="4.6"/></g>
-      <path d="M60,60 L39.52,45.66" fill="none" stroke="#3a7eab" stroke-width="7.5" stroke-linecap="round"/>
-      <path d="M60,60 L91.18,42" fill="none" stroke="#cf4832" stroke-width="7.5" stroke-linecap="round"/>
-      <circle cx="60" cy="60" r="5.2" fill="#23292b"/>
+      <g transform="translate(148,0)" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="11">
+        <path d="M6,30 L60,30 M33,30 L33,96"/>
+        <circle cx="94" cy="66" r="21.5" stroke="#3a7eab"/>
+        <path d="M162.7,49.65 A21.5,21.5 0 1 0 162.7,82.35"/>
+        <path d="M186,25 L186,96 M186,66 L211,43 M186,66 L214,96"/>
+      </g>
     </svg>
     <h1>Read a clock</h1>
     <p>Drop an analog clock face. The model reads it to the nearest five minutes.</p>
@@ -204,6 +225,10 @@
           </div>
           <div class="top5" id="top5"></div>
           <label class="toggle"><input type="checkbox" id="heattoggle"> where it looked <span id="heatwait" style="opacity:.6"></span></label>
+          <div class="heatkey" id="heatkey">
+            <span>low</span><span class="grad"></span><span>high</span>
+            <span>&nbsp;drop in confidence when covered</span>
+          </div>
         </div>
       </div>
     </div>
@@ -333,6 +358,7 @@
 
     $("result").classList.add("show");
     $("stage").classList.remove("heaton");
+    $("heatkey").classList.remove("on");
     $("heattoggle").checked = false;
     clearHeat();
   }
@@ -384,22 +410,32 @@
     tmp.width = tmp.height = W;
     const tg = tmp.getContext("2d");
     const cell = W / GRID;
+    // yellow -> red ramp, alpha rising with the confidence drop
+    const ramp = (v) => {
+      const r = Math.round(240 + (207 - 240) * v);
+      const gg = Math.round(190 + (72 - 190) * v);
+      const b = Math.round(70 + (50 - 70) * v);
+      return [r, gg, b];
+    };
     for (let gy = 0; gy < GRID; gy++)
       for (let gx = 0; gx < GRID; gx++) {
         const v = drops[gy * GRID + gx] / mx;
-        if (v < 0.05) continue;
+        if (v < 0.03) continue;
         const cx = (gx + 0.5) * cell, cy = (gy + 0.5) * cell;
-        const rad = cell * 1.5;
+        const rad = cell * 1.35;
+        const [r, gg, b] = ramp(v);
+        const a = Math.min(0.96, 0.25 + v * 0.85);
         const grad = tg.createRadialGradient(cx, cy, 0, cx, cy, rad);
-        grad.addColorStop(0, `rgba(207,72,50,${(v * 0.95).toFixed(3)})`);
-        grad.addColorStop(1, "rgba(207,72,50,0)");
+        grad.addColorStop(0, `rgba(${r},${gg},${b},${a.toFixed(3)})`);
+        grad.addColorStop(0.6, `rgba(${r},${gg},${b},${(a * 0.55).toFixed(3)})`);
+        grad.addColorStop(1, `rgba(${r},${gg},${b},0)`);
         tg.fillStyle = grad;
         tg.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
       }
 
     const g = heatCanvas.getContext("2d");
     g.clearRect(0, 0, W, W);
-    g.filter = "blur(5px)";
+    g.filter = "blur(4px)";
     g.drawImage(tmp, 0, 0);
     g.filter = "none";
 
@@ -411,8 +447,10 @@
     if (e.target.checked) {
       if (!heatDone) { await computeHeat(); heatDone = true; }
       $("stage").classList.add("heaton");
+      $("heatkey").classList.add("on");
     } else {
       $("stage").classList.remove("heaton");
+      $("heatkey").classList.remove("on");
     }
     try { localStorage.setItem("tock-heat", e.target.checked ? "1" : "0"); } catch (_) {}
   });

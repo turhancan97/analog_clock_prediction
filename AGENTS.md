@@ -26,7 +26,9 @@ Repo layout: `scripts/` holds every Python entry point (`train.py`,
 `evaluate.py`, `predict.py`, `compare_full_dataset.py`,
 `generate_readme_figures.py`, `evaluate_real_photos.py`,
 `characterize_rotation_brittleness.py`, `rotation_range_sweep.py`,
-`backbone_ablation.py`, `build_real_manifest.py`) and the Slurm job files;
+`backbone_ablation.py`, `build_real_manifest.py`, `flag_suspects.py`
+[confidence-based dataset-defect flagging], `generate_brand_assets.py`) and
+the Slurm job files;
 `train.py` takes `--backbone` (efficientnetb3 default / efficientnetb0 /
 mobilenetv3small / resnet50v2 / simplecnn), `--head` (softmax default /
 circular = (sin,cos) angle regression), `--seed`, `--rotation-factor`

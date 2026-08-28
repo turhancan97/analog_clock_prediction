@@ -2,6 +2,26 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-28 — case study + confidence-based defect flagging
+
+Wrapping up the investigation (README future work: model card / writeup, and
+confidence-based defect auto-flagging).
+
+- **`scripts/flag_suspects.py`** — generalises the by-hand per-class defect
+  hunt into two confidence flags: `low-conf` (p(top-1) below a threshold —
+  the diffuse blank-dial signature) and `confident-wrong` (wrong, sure, and
+  far off — the ±3h15m hand-shift signature, or a bad label). Confident-wrong
+  predictions are histogrammed by *signed* minute offset; a repeated offset
+  is called out as a systematic rendering-bug signature. `--csv` dumps the
+  flagged rows. Works with either head.
+  - Over all 14,400 images it flags **every one of the model's 26 misreads**:
+    24 blank-dial (all `<class>/36.jpg`, p ≈ 0.075–0.085) and 2 hand-shift,
+    landing exactly at −195 and +195 min. Zero per-class work.
+- **`docs/case-study.html`** — a narrative writeup of the whole project
+  (accuracy + defect accounting, the rotation cliff and its fix, the
+  real-photo wall, and the "verify, don't assume" method). Published as an
+  Artifact; uses the Tock identity.
+
 ## 2026-08-28 — project branding ("Tock")
 
 The project has a name and a logo. **Tock** — the tick-*tock* of a clock.

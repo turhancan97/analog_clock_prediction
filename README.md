@@ -6,8 +6,10 @@
 # Tock — analog clock reading
 
 Reads the time off a 224×224 analog clock face image, as one of 144 classes
-(every 5-minute increment on a 12-hour dial). Brand assets in
-[`docs/branding/`](docs/branding/).
+(every 5-minute increment on a 12-hour dial).
+
+**[Case study →](docs/case-study.html)** (the whole story, rendered) &nbsp;·&nbsp;
+brand assets in [`docs/branding/`](docs/branding/).
 
 ![Sample predictions across a random selection of classes](docs/images/sample_predictions.png)
 
@@ -210,19 +212,16 @@ guidance.
   photorealistic renderer), not more tuning. Residual errors also include
   the ±195-min 12-hour-hand ambiguity, which a two-output (hour-angle,
   minute-angle) head might address.
-- **Model card / public-facing writeup.** The findings here (rotation
-  brittleness despite dial-reading invariance, the two dataset rendering
-  defects and how Grad-CAM helped tell them apart from real model error, the
-  `11-10` failure mode and its fix) are well-documented enough in
-  `CHANGELOG.md` to make a solid blog post, Kaggle notebook, or standalone
-  model card if this is ever shared publicly.
-- **Confidence-based defect auto-flagging.** The two dataset defects found so
-  far have distinct confidence signatures — the blank-dial defect is diffuse
-  and near-random (p≈0.06–0.10), the ±3h15m shift defect is high-confidence
-  but wrong. A script that flags low-confidence predictions and
-  confidently-wrong predictions could auto-surface defects like these
-  instead of hand-diagnosing per-class each time, and would generalize to
-  auditing other synthetic datasets built the same way.
+- ~~**Model card / public-facing writeup.**~~ **Done (2026-08-28):**
+  `docs/case-study.html` — a narrative pass over the whole project
+  (accuracy + defect accounting, the rotation cliff and its fix, the
+  real-photo wall, the "verify, don't assume" method).
+- ~~**Confidence-based defect auto-flagging.**~~ **Done (2026-08-28):**
+  `scripts/flag_suspects.py` flags `low-conf` (diffuse, blank-dial) and
+  `confident-wrong` (sure and far off, the ±3h15m shift) predictions and
+  histograms the confident-wrong signed offsets. Over the full dataset it
+  catches all 26 of the default model's misreads (24 blank-dial, 2 shift)
+  with no per-class work.
 - ~~**Widen the rotation-augmentation range.**~~ **Done (2026-08-28).**
   Training at `--rotation-factor 0.15` (±54°) widens the robust plateau to
   the entire ±90° sweep at no upright-accuracy cost (in fact the best

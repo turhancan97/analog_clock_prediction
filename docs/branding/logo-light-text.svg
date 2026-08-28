@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 392 120" width="392" height="120" role="img" aria-label="Tock">
+  <title>Tock</title>
+  <g transform="translate(60,60) scale(0.95) translate(-60,-60)">
+    <g fill="none" stroke-linejoin="round">
+      <path d="M60.0,18.0 L81.0,23.63 L96.37,39.0 L102.0,60.0 L96.37,81.0 L81.0,96.37 L60.0,102.0 L39.0,96.37 L23.63,81.0 L18.0,60.0 L23.63,39.0 L39.0,23.63 Z" stroke="#b9bdbf" stroke-width="1.8" stroke-opacity="1.0"/>
+      <path d="M60.0,18.0 L96.37,39.0 L96.37,81.0 L60.0,102.0 L23.63,81.0 L23.63,39.0 Z" stroke="#d1d3d4" stroke-width="1.5" stroke-opacity="1.0"/>
+    </g>
+    <g fill="#8b9296" fill-opacity="1.0"><circle cx="81.0" cy="23.63" r="3.9"/><circle cx="96.37" cy="39.0" r="3.9"/><circle cx="96.37" cy="81.0" r="3.9"/><circle cx="81.0" cy="96.37" r="3.9"/><circle cx="39.0" cy="96.37" r="3.9"/><circle cx="23.63" cy="81.0" r="3.9"/><circle cx="23.63" cy="39.0" r="3.9"/><circle cx="39.0" cy="23.63" r="3.9"/></g>
+    <g fill="#5f676b"><circle cx="60.0" cy="18.0" r="4.6"/><circle cx="102.0" cy="60.0" r="4.6"/><circle cx="60.0" cy="102.0" r="4.6"/><circle cx="18.0" cy="60.0" r="4.6"/></g>
+    <path d="M60,60 L39.52,45.66" fill="none" stroke="#3a7eab" stroke-width="7.5" stroke-linecap="round"/>
+    <path d="M60,60 L91.18,42.00" fill="none" stroke="#cf4832" stroke-width="7.5" stroke-linecap="round"/>
+    <circle cx="60" cy="60" r="5.2" fill="#23292b"/>
+  </g>
+  <g transform="translate(148,0)" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="11">
+    <path d="M6,30 L60,30 M33,30 L33,96" stroke="#23292b"/>
+    <circle cx="94" cy="66" r="21.5" stroke="#3a7eab"/>
+    <path d="M162.7,49.65 A21.5,21.5 0 1 0 162.7,82.35" stroke="#23292b"/>
+    <path d="M186,25 L186,96 M186,66 L211,43 M186,66 L214,96" stroke="#23292b"/>
+  </g>
+</svg>

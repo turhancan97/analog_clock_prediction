@@ -1,7 +1,13 @@
-# Analog Clock Reading
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/branding/logo-dark-text.svg">
+  <img alt="Tock" src="docs/branding/logo-light-text.svg" width="300">
+</picture>
+
+# Tock — analog clock reading
 
 Reads the time off a 224×224 analog clock face image, as one of 144 classes
-(every 5-minute increment on a 12-hour dial).
+(every 5-minute increment on a 12-hour dial). Brand assets in
+[`docs/branding/`](docs/branding/).
 
 ![Sample predictions across a random selection of classes](docs/images/sample_predictions.png)
 

@@ -2,6 +2,22 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-28 — project branding ("Tock")
+
+The project has a name and a logo. **Tock** — the tick-*tock* of a clock.
+
+- Mark: a clock dial whose 12 tick marks double as graph nodes (dodecagon +
+  inscribed hexagon edges) — the analog face and the net that reads it in one
+  shape. Hands at 10:10, hour in brand blue, minute in brand red.
+- Palette: `#3a7eab` blue · `#cf4832` red · `#d1d3d4` grey (+ ink `#23292b` /
+  `#eef0f0`).
+- `docs/branding/` — four SVG logos (icon / icon+wordmark, light + dark) plus
+  PNG exports and a brand `README.md`. `scripts/generate_brand_assets.py`
+  regenerates them all (`--png` needs `cairosvg`). Wordmark is drawn as
+  strokes, no font dependency.
+- Main `README.md` H1 is now "Tock — analog clock reading" with the logo.
+  Repo directory name unchanged.
+
 ## 2026-08-28 — closing the synthetic→real gap: scaffolding (job pending)
 
 README future work #1. Two stacked moves, both wired into `train.py`:

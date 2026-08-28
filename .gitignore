@@ -4,4 +4,6 @@ __pycache__/
 *.log
 data
 logs/
-real_data/
+real_data/*
+!real_data/real_manifest.csv
+!real_data/source.txt

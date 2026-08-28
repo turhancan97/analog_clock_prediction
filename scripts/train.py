@@ -138,20 +138,51 @@ def main():
     ap.add_argument("--out", default=str(cm.MODELS_DIR / "clock_model.keras"))
     ap.add_argument("--freeze-backbone", action="store_true",
                     help="train only the head (much faster, lower ceiling)")
+    ap.add_argument("--realism-aug", action="store_true",
+                    help="stronger augmentation (perspective/shear/photometric/"
+                         "blur/noise) aimed at closing the synthetic->real gap")
+    ap.add_argument("--real-mix", action="store_true",
+                    help="mix real-photo training images (real_data/real_manifest.csv, "
+                         "split=='train') into the synthetic stream, oversampled")
+    ap.add_argument("--real-oversample", type=int, default=25,
+                    help="how many times to repeat the real training set in the mix")
+    ap.add_argument("--init-weights", default=None,
+                    help="checkpoint to copy weights from before training "
+                         "(architecture must match; use for real-data fine-tuning)")
     args = ap.parse_args()
     Path(args.out).resolve().parent.mkdir(parents=True, exist_ok=True)
     if args.seed is not None:
         keras.utils.set_random_seed(args.seed)
 
-    train_ds = cm.make_dataset("train", args.batch_size, shuffle=True)
+    # Synthetic stream, optionally mixed with oversampled real-photo training
+    # images (both unbatched, shuffled together, then rebatched).
+    train_stream = cm.make_dataset("train", args.batch_size, shuffle=True).unbatch()
+    if args.real_mix:
+        real_stream = (cm.make_real_dataset("train", args.batch_size, shuffle=True)
+                       .unbatch().repeat(args.real_oversample))
+        train_stream = train_stream.concatenate(real_stream)
+    train_ds = (train_stream.shuffle(20_000, reshuffle_each_iteration=True)
+                .batch(args.batch_size).prefetch(tf.data.AUTOTUNE))
     valid_ds = cm.make_dataset("valid", args.batch_size)
 
     # Augment layers expect raw [0, 255]; input scaling lives inside the model.
-    augment = keras.Sequential([
-        keras.layers.RandomRotation(args.rotation_factor, fill_mode="nearest"),
-        keras.layers.RandomZoom(0.05, fill_mode="nearest"),
-        keras.layers.RandomTranslation(0.05, 0.05, fill_mode="nearest"),
-    ], name="augment")
+    if args.realism_aug:
+        augment = keras.Sequential([
+            keras.layers.RandomRotation(args.rotation_factor, fill_mode="nearest"),
+            keras.layers.RandomTranslation(0.12, 0.12, fill_mode="reflect"),
+            keras.layers.RandomZoom((-0.2, 0.3), fill_mode="reflect"),
+            keras.layers.RandomShear(x_factor=0.15, y_factor=0.15),
+            keras.layers.RandomPerspective(factor=0.35, scale=0.5),
+            keras.layers.RandomBrightness(0.3, value_range=(0, 255)),
+            keras.layers.RandomContrast(0.3, value_range=(0, 255)),
+            keras.layers.RandomGaussianBlur(factor=1.0, kernel_size=5, sigma=1.0),
+        ], name="augment_realism")
+    else:
+        augment = keras.Sequential([
+            keras.layers.RandomRotation(args.rotation_factor, fill_mode="nearest"),
+            keras.layers.RandomZoom(0.05, fill_mode="nearest"),
+            keras.layers.RandomTranslation(0.05, 0.05, fill_mode="nearest"),
+        ], name="augment")
     train_ds = train_ds.map(lambda x, y: (augment(x, training=True), y),
                             num_parallel_calls=tf.data.AUTOTUNE)
 
@@ -167,10 +198,17 @@ def main():
 
     model = build_model(args.backbone, args.dropout, args.learning_rate,
                         head=args.head, trainable_backbone=not args.freeze_backbone)
+    if args.init_weights:
+        src = cm.load_model(args.init_weights)
+        model.set_weights(src.get_weights())
+        print(f"initialised weights from {args.init_weights}")
     model.summary()
     print(f"\nbackbone: {args.backbone}   head: {args.head}   "
           f"rotation_factor: {args.rotation_factor}   "
-          f"params: {model.count_params():,}")
+          f"realism_aug: {args.realism_aug}   "
+          f"real_mix: {args.real_mix}"
+          + (f" (x{args.real_oversample})" if args.real_mix else "")
+          + f"   params: {model.count_params():,}")
 
     model.fit(
         train_ds, validation_data=valid_ds, epochs=args.epochs,
@@ -195,8 +233,20 @@ def main():
     d = np.abs([to_min(p) - to_min(t) for p, t in zip(y_pred, y_true)])
     err = np.minimum(d, 720 - d)
     print(f"\nbest model saved to {args.out}")
-    print(f"test top-1     : {(y_pred == y_true).mean():.4f}")
-    print(f"test mean |err|: {err.mean():.1f} min")
+    print(f"synthetic test top-1     : {(y_pred == y_true).mean():.4f}")
+    print(f"synthetic test mean |err|: {err.mean():.1f} min")
+
+    # Real-photo held-out test, if the manifest is present. This split is never
+    # trained on (build_real_manifest.py / --real-mix only touch split=="train").
+    if cm.REAL_MANIFEST.exists():
+        for rsplit in ("test", "train"):
+            rds = cm.make_real_dataset(rsplit, args.batch_size)
+            rp = cm.output_to_class_idx(model.predict(rds, verbose=0))
+            rt = np.concatenate([y.numpy().argmax(1) for _, y in rds])
+            rd = np.abs([to_min(p) - to_min(t) for p, t in zip(rp, rt)])
+            rerr = np.minimum(rd, 720 - rd)
+            print(f"real {rsplit:5s} top-1: {(rp == rt).mean():.4f}   "
+                  f"mean |err|: {rerr.mean():.1f} min   ({len(rt)} photos)")
 
 
 if __name__ == "__main__":

@@ -22,11 +22,13 @@ Repo layout: `scripts/` holds every Python entry point (`train.py`,
 `evaluate.py`, `predict.py`, `compare_full_dataset.py`,
 `generate_readme_figures.py`, `evaluate_real_photos.py`,
 `characterize_rotation_brittleness.py`, `rotation_range_sweep.py`,
-`backbone_ablation.py`) and the Slurm job files; `train.py` takes
-`--backbone` (efficientnetb3 default / efficientnetb0 / mobilenetv3small /
-resnet50v2 / simplecnn), `--head` (softmax default / circular = (sin,cos)
-angle regression), `--seed`, and `--rotation-factor` (default 0.15 = ±54°
-rotation aug; see `CHANGELOG.md` 2026-08-27 and 2026-08-28).
+`backbone_ablation.py`, `build_real_manifest.py`) and the Slurm job files;
+`train.py` takes `--backbone` (efficientnetb3 default / efficientnetb0 /
+mobilenetv3small / resnet50v2 / simplecnn), `--head` (softmax default /
+circular = (sin,cos) angle regression), `--seed`, `--rotation-factor`
+(default 0.15 = ±54° rotation aug), and for the real-photo gap
+`--realism-aug` / `--real-mix` / `--real-oversample` / `--init-weights`
+(see `CHANGELOG.md` 2026-08-27 and 2026-08-28).
 `clockmodel.output_to_class_idx()` decodes either head; `evaluate.py` and
 `backbone_ablation.py` are head-agnostic through it;
 `src/clockmodel.py` is the shared library they all import; `models/`
@@ -185,13 +187,17 @@ These are documented at length in `README.md`; the short version:
 - **Does not generalize to real photos at all** (2026-08-24, see
   `CHANGELOG.md`). Tested against 92 real clock photos
   (`kongaskristjan/real-clocks`, `scripts/evaluate_real_photos.py`):
-  **2.2% top-1 accuracy** on the ±54° default (vs. ~99.7% synthetic), mean
-  error 177 minutes, mean confidence 0.17. Errors are spread across every
-  magnitude, not one clean systematic offset — genuine confusion on
-  out-of-distribution input, not a fixable single bug. **Rotation robustness
-  is ruled out as the cause** (2026-08-28): the ±54° default scores the same
-  ~2–5% as the old ±10.8° checkpoint (5.4%). The gap is perspective, dial
-  art, lighting and framing.
+  **2.2% top-1 accuracy** on the ±54° default over all 92 kongaskristjan
+  photos (vs. ~99.7% synthetic); **7.0% on the 57-photo held-out real test
+  split** (`evaluate_real_photos.py --split test`). Mean error ~160–177 min,
+  confidence ~0.17–0.25. Errors spread across every magnitude — genuine OOD
+  confusion, not a fixable single bug. **Rotation robustness is ruled out as
+  the cause** (2026-08-28): the ±54° default scores the same ~2–7% as the
+  old ±10.8° checkpoint. The gap is perspective, dial art, lighting, framing.
+  Being worked (README #1): `train.py --realism-aug` (synthetic realism) and
+  `--real-mix` (fold in the 138 real training photos); see `CHANGELOG.md`.
+  **Never train on the 57-photo real test split** — the manifest builder and
+  `--real-mix` only touch `split=="train"`; keep it that way.
   The 99.99%-real-accuracy figure on the synthetic set (above) says nothing
   about real-world performance; don't cite it as if it does.
 

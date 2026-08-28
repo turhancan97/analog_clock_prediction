@@ -127,8 +127,14 @@ error magnitude rather than one clean systematic offset — genuine confusion
 on out-of-distribution input, not a single fixable bug. **Making the model
 rotation-robust (±54° default, up from ±10.8°) did not help** — real-photo
 top-1 went from 5.4% to 2.2%, i.e. unchanged within noise. The gap is
-perspective, dial art, lighting and framing, not rotation. See `DATASET.md`
-("Real-photo test set") and `CHANGELOG.md` (2026-08-24, 2026-08-28).
+perspective, dial art, lighting and framing, not rotation.
+
+A second labelled source (`vctorsuarezvara/real-images-of-analogclocks`, 103
+photos) brings the real pool to 195. `scripts/build_real_manifest.py` splits
+it 138 train / 57 test (stratified by hour, seed 0); the test split is held
+out of all training. Closing the gap with realism augmentation
+(`train.py --realism-aug`) and a real-photo mix (`--real-mix`) is in progress
+— see `CHANGELOG.md` (2026-08-24, 2026-08-28) and `DATASET.md`.
 
 ![Real-photo predictions: six best and six worst](docs/images/real_photo_predictions.png)
 
@@ -185,16 +191,14 @@ guidance.
 
 ## Future work
 
-- **Close the real-photo gap.** Measured, not predicted (see "Generalization
-  to real photos" above): 2.2% top-1 on real clock photos vs. ~99.7%
-  synthetic. Rotation robustness has been ruled out as the cause — the ±54°
-  default scores the same ~2–5% as the ±10.8° one. The 92-image sample has
-  no angle/lighting/dial-style labels, so it can't isolate which factor
-  dominates; a bigger labeled real-photo set
-  (`vctorsuarezvara/real-images-of-analogclocks` is untried) would help.
-  Almost certainly needs its own data collection or realistic augmentation
-  (perspective warp, lighting, dial-art and hand-drawing variance) rather
-  than more epochs on the current synthetic set.
+- **Close the real-photo gap** (in progress). 2.2% top-1 on real photos vs.
+  ~99.7% synthetic; 7.0% on the held-out real test split. Rotation
+  robustness ruled out. Two moves are wired up and scheduled
+  (`scripts/train_real_gap.slurm`): `--realism-aug` (perspective / shear /
+  photometric / blur on top of the ±54° rotation) and `--real-mix` (fold the
+  138 real training photos into the synthetic stream, oversampled), stacked.
+  Still likely limited by real-data volume (195 photos, 99/144 classes) —
+  a larger labelled set or synthetic-realism rendering would go further.
 - **Model card / public-facing writeup.** The findings here (rotation
   brittleness despite dial-reading invariance, the two dataset rendering
   defects and how Grad-CAM helped tell them apart from real model error, the

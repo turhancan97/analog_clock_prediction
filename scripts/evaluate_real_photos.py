@@ -44,13 +44,7 @@ def parse_label(path):
 
 
 def nearest_5min_label(hour, minute, names):
-    rounded_minute = int(round(minute / 5)) * 5
-    hour_adj = hour + rounded_minute // 60
-    rounded_minute %= 60
-    hour_label = hour_adj % 12
-    if hour_label == 0:
-        hour_label = 12
-    label = f"{hour_label}-{rounded_minute:02d}"
+    label = cm.nearest_5min_label(hour, minute)
     assert label in names, f"{label} not a known class (from {hour}:{minute:02d})"
     return label
 
@@ -67,21 +61,40 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-dir", default=str(REPO_ROOT / "real_data"),
                      help="directory with train/ and val/ subdirs of real photos")
+    ap.add_argument("--split", choices=["all", "kongaskristjan", "train", "test"],
+                    default="all",
+                    help="'all' (default) globs --data-dir/*/ (kongaskristjan, "
+                         "back-compat with the historical number); 'train'/'test' "
+                         "use real_data/real_manifest.csv (both photo sources, the "
+                         "held-out split); 'kongaskristjan' = manifest rows from "
+                         "that source only")
     ap.add_argument("--model", default=None)
     ap.add_argument("--figure", default=str(REPO_ROOT / "docs" / "images" / "real_photo_predictions.png"))
     args = ap.parse_args()
 
-    data_dir = Path(args.data_dir)
-    paths = sorted(data_dir.glob("*/*.jpg"))
-    if not paths:
-        sys.exit(f"no images found under {data_dir}/*/*.jpg -- download the dataset first (see module docstring)")
+    import pandas as pd
+    if args.split == "all":
+        paths = sorted(Path(args.data_dir).glob("*/*.jpg"))
+        if not paths:
+            sys.exit(f"no images under {args.data_dir}/*/*.jpg -- see module docstring")
+        rows = [(p, *parse_label(p)) for p in paths]
+    else:
+        if not cm.REAL_MANIFEST.exists():
+            sys.exit(f"{cm.REAL_MANIFEST} not found -- run scripts/build_real_manifest.py")
+        df = pd.read_csv(cm.REAL_MANIFEST)
+        if args.split in ("train", "test"):
+            df = df[df["split"] == args.split]
+        else:
+            df = df[df["source"] == args.split]
+        rows = [(REPO_ROOT / r.path, int(r.hour), int(r.minute))
+                for r in df.itertuples()]
+    print(f"evaluating {len(rows)} real photos (split={args.split})")
 
     names = cm.class_names()
     model = cm.load_model(args.model) if args.model else cm.load_model()
 
     records = []
-    for path in paths:
-        hour, minute = parse_label(path)
+    for path, hour, minute in rows:
         img = cm.load_image(path)
         probs = model.predict(img[None, ...], verbose=0)[0]
         pred_idx = int(np.argmax(probs))
@@ -103,7 +116,7 @@ def main():
     within5 = np.mean(errs <= 5)
     within30 = np.mean(errs <= 30)
 
-    print(f"real photos       : {n} images (kongaskristjan/real-clocks)")
+    print(f"real photos       : {n} images (split={args.split})")
     print(f"top-1 accuracy     : {top1:.4f}  (vs. ~0.9972 on the synthetic test split)")
     print(f"top-5 accuracy     : {top5:.4f}")
     print(f"median |error|     : {np.median(errs):.0f} min")
@@ -133,7 +146,7 @@ def main():
             color="black" if ok else "crimson", fontsize=8,
         )
         ax.axis("off")
-    plt.suptitle(f"Real-photo predictions: 6 best + 6 worst (of {n}, kongaskristjan/real-clocks)")
+    plt.suptitle(f"Real-photo predictions: 6 best + 6 worst (of {n}, split={args.split})")
     plt.tight_layout()
     Path(args.figure).parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(args.figure, dpi=130)

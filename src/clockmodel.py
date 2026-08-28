@@ -9,6 +9,8 @@ import tensorflow as tf
 REPO_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = REPO_DIR / "data"
 MODELS_DIR = REPO_DIR / "models"
+REAL_DATA_DIR = REPO_DIR / "real_data"
+REAL_MANIFEST = REAL_DATA_DIR / "real_manifest.csv"  # built by scripts/build_real_manifest.py
 IMG_SIZE = (150, 150)          # what the released model expects
 NUM_CLASSES = 144
 MINUTES_PER_CLASS = 5          # 720 min on a 12h dial / 144 classes
@@ -101,6 +103,47 @@ def label_to_time(label):
     """'10-35' or '10_35' -> '10:35'."""
     hour, minute = label.replace("_", "-").split("-")
     return f"{int(hour)}:{minute}"
+
+
+def nearest_5min_label(hour, minute):
+    """(hour, minute) with arbitrary minute -> nearest 5-minute class label
+    ('10-10', '12-00', ...), carrying minute rounding into the hour. Real-photo
+    times aren't on the 5-minute grid the 144 classes use; this maps them on."""
+    rounded = int(round(minute / 5.0)) * 5
+    hour = (hour + rounded // 60) % 12
+    rounded %= 60
+    return f"{hour if hour else 12}-{rounded:02d}"
+
+
+def make_real_dataset(split=None, batch_size=32, shuffle=False):
+    """tf.data pipeline over the real-photo manifest (REAL_MANIFEST), label-
+    aligned with class_names(). `split` filters the manifest's `split` column
+    ('train' / 'test'); None uses every row. Raises if the manifest is missing
+    -- build it with scripts/build_real_manifest.py."""
+    if not REAL_MANIFEST.exists():
+        raise FileNotFoundError(
+            f"{REAL_MANIFEST} not found -- run scripts/build_real_manifest.py")
+    df = pd.read_csv(REAL_MANIFEST)
+    if split is not None:
+        df = df[df["split"] == split]
+    idx = {n: i for i, n in enumerate(class_names())}
+    paths = [str(REPO_DIR / p) for p in df["path"]]
+    onehot = keras.utils.to_categorical(
+        [idx[l] for l in df["label"]], NUM_CLASSES).astype("float32")
+
+    ds = tf.data.Dataset.from_tensor_slices((paths, onehot))
+    if shuffle:
+        ds = ds.shuffle(len(paths), reshuffle_each_iteration=True)
+
+    def _load(path, y):
+        img = tf.io.decode_image(tf.io.read_file(path), channels=3,
+                                 expand_animations=False)
+        img = tf.image.resize(tf.cast(img, tf.float32), IMG_SIZE)
+        img.set_shape((*IMG_SIZE, 3))
+        return img, y
+
+    return (ds.map(_load, num_parallel_calls=tf.data.AUTOTUNE)
+              .batch(batch_size).prefetch(tf.data.AUTOTUNE))
 
 
 def decode_predictions(probs, names=None, top=1):

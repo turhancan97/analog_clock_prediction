@@ -2,6 +2,50 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-28 — closing the synthetic→real gap: scaffolding (job pending)
+
+README future work #1. Two stacked moves, both wired into `train.py`:
+
+- **B — realism augmentation** (`--realism-aug`): on top of the ±54°
+  rotation, adds `RandomTranslation(0.12)`, `RandomZoom(-0.2..+0.3)`,
+  `RandomShear(0.15)`, `RandomPerspective(0.35)`, `RandomBrightness(0.3)`,
+  `RandomContrast(0.3)`, `RandomGaussianBlur`. Off by default (keeps the
+  reproducible recipe intact). Scales to all 144 classes, uses no real data.
+- **A — real-photo mix** (`--real-mix`, `--real-oversample`, `--init-weights`):
+  folds the real training photos into the synthetic stream, oversampled;
+  `--init-weights` starts from an existing checkpoint for fine-tuning.
+
+### Real-photo data
+
+- **195 labelled real photos** now assembled from two Kaggle sources:
+  `kongaskristjan/real-clocks` (92) + `vctorsuarezvara/real-images-of-analogclocks`
+  (103). Both gitignored under `real_data/`.
+- `scripts/build_real_manifest.py` → `real_data/real_manifest.csv` (committed,
+  small): each photo with its time rounded to the 5-minute class grid and a
+  deterministic **train/test split stratified by hour bucket** (seed 0,
+  test_frac 0.3 → 138 train / 57 test, 99/144 classes covered). Per-class
+  stratification is impossible at <1.5 photos/class.
+- **The 57-photo test split is never trained on.** `--real-mix` and the
+  manifest builder only ever touch `split=="train"`. `train.py` reports real
+  test + train top-1 at the end of every run; `evaluate_real_photos.py`
+  gained `--split {all,kongaskristjan,train,test}` (default `all` = the
+  historical glob, back-compatible).
+- `clockmodel.py`: `nearest_5min_label()`, `make_real_dataset()`,
+  `REAL_DATA_DIR`, `REAL_MANIFEST`.
+
+### Baseline to beat (current default, `clock_model_rot54_s0.keras`)
+
+| | synthetic test | real test (57) | real train (138) |
+|---|---|---|---|
+| top-1 | 0.9972 | **0.070** | 0.014 |
+| mean \|err\| | 0.5 min | 163 min | — |
+
+### Runs (`scripts/train_real_gap.slurm`, pending)
+
+`realism` (B alone) · `realism_realmix` (B+A, fine-tuned from the default) ·
+`realism_realmix_scratch` (B+A, trained together from ImageNet). All B3
+softmax seed 0, 120-epoch budget.
+
 ## 2026-08-28 — widening the rotation-augmentation range (new default checkpoint)
 
 README future work: "Widen the rotation-augmentation range." The brittleness

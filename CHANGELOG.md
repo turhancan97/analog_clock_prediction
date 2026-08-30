@@ -2,6 +2,104 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-30 — brand sheet + brand README removed (logos kept)
+
+This is a research repo, so the pages *explaining* the branding are gone. The
+logo assets themselves stay and are still used in `README.md` and on the site.
+
+- Deleted `docs/branding/brand-sheet.html` (the identity/palette showcase) and
+  `docs/branding/README.md` (brand usage guidance).
+- **Kept:** all 11 logo files in `docs/branding/` (four SVGs + PNG exports) and
+  `scripts/generate_brand_assets.py`, which regenerates them. The logo lockups
+  in `README.md`, `docs/index.html`, `docs/case-study.html` and
+  `docs/demo.template.html` are untouched.
+- `docs/index.html` drops the "Brand" card (two cards now: demo, case study);
+  `README.md` drops the brand-sheet link and instead points at
+  `docs/branding/` for the logo files.
+
+## 2026-08-29 — resize-filter dependency (new), class-ordering correction, blog + Kaggle writeups
+
+Wrote a Medium post (`blog/`) and a Kaggle notebook (`kaggle/`, both gitignored).
+Re-measuring every claim for those turned up two corrections to documented facts.
+
+### The resize filter changes the answer, and flips the checkpoint ranking
+
+Images are stored 224x224; the model takes 150x150, so every image is
+downsampled at inference. Nothing in this repo pinned the filter. Full test
+split (1440), same weights, same files:
+
+| resize filter | `time-99.68.h5` (released) | `clock_model_rot54_s0` (default) |
+|---|---|---|
+| bilinear | 0.9938 (9 err) | **0.9979** (3 err) |
+| nearest | **0.9986** (2 err) | 0.9812 (27 err) |
+| bicubic | 0.9938 (9 err) | 0.9972 (4 err) |
+
+- **The released model's signature `11-10 -> 7:55` failure mode is a
+  preprocessing artifact.** All 6 of its test-split `11-10` misreads vanish under
+  nearest-neighbour; it goes 9 errors -> 2. Verified directly on
+  `data/test/11-10/*.jpg` (nearest: 0 errors, bilinear: 6 at p~0.89-0.92).
+- **Each checkpoint is best under the filter it was trained with.** The released
+  one came from Keras 2.8 `ImageDataGenerator.flow_from_dataframe`, which
+  defaults to `interpolation="nearest"`; `clockmodel.make_dataset` uses
+  `image_dataset_from_directory`, which defaults to **bilinear**. So this repo
+  has always evaluated the released model under a filter it never trained on.
+- **Consequence for the docs:** the released model's test accuracy is 0.9986
+  under its own preprocessing, not the 0.9938 quoted everywhere in README.md /
+  AGENTS.md. The default checkpoint is still better *under the repo's own
+  bilinear pipeline* (0.9979 vs 0.9938), but the headline gap is partly a
+  preprocessing artifact, and the ranking **reverses** under nearest. Not yet
+  corrected in README.md — see "Not done".
+- The `11-10` diagnosis (2026-08-23, far below) concluded that class was genuine
+  model weakness because retraining fixed 28 of 29. That still holds for the
+  retrained checkpoints, but the released model's version of it is mostly the
+  resize filter, not a weakness of its weights.
+
+### The `class index` column is not a third ordering
+
+README.md and AGENTS.md describe three distinct class orderings, the third being
+`clocks.csv`'s `class index` column, scoring 65%. Measured: **`class index`
+order is byte-identical to the hyphen-sorted directory order**, and both score
+**0.6660** with 32.8% whole-hour errors. There are two orderings, not three, and
+the 65% figure does not reproduce. (The underscore-sorted order is unaffected:
+0.9938, exactly as documented.)
+
+### Added (gitignored)
+
+- `blog/medium-post.md` — ~2,600-word writeup, synthetic->real collapse as the
+  spine; includes the resize-filter finding and reports the contaminated 19%
+  real-photo number with its label-audit caveat attached.
+- `kaggle/tock-analog-clock-reading.ipynb` — 42-cell reproducible pipeline for
+  the Kaggle dataset (ordering trap, Keras 3 load patch, evaluation, the resize
+  finding, error forensics, Grad-CAM, rotation sweep, real photos). **Executed
+  end-to-end with zero cell errors**; every number in its prose is one its own
+  cells print. Uses only the dataset-bundled checkpoint, so it runs on Kaggle
+  with nothing from `models/`.
+- `kaggle/kernel-metadata.json` for `kaggle kernels push`; `blog/README.md` and
+  `kaggle/README.md` with publishing steps.
+- `.gitignore`: `blog/`, `kaggle/`.
+
+### Verified while writing
+
+- `keras.ops.image.affine_transform` rotation sweep reproduces the published
+  result: released model 0.993 at -90/0/+90 deg and **0.000 at every angle
+  between**, confidence 0.44-0.88 throughout the dead zone (the 90 deg symmetry
+  noted 2026-08-28); `rot54` flat ~0.97 across the whole sweep.
+- `layer.output_shape` is gone in Keras 3 (`AttributeError`) — use
+  `layer.output.shape`. The `.h5` model returns its output as a 1-element list
+  where the `.keras` one returns a tensor; Grad-CAM code must handle both.
+- `valid/8-50/36.jpg` (labelled 8:50) visually shows ~12:05 = +195 min, as
+  documented. `train/8-25/38.jpg` and `train/2-50/0.jpg` were *not* visually
+  confirmable as defective this session; the notebook therefore shows the images
+  and rests the defect case on the statistical evidence (exact +/-195 clustering
+  on file indices) rather than asserting specific files.
+
+### Not done
+
+- README.md / AGENTS.md still quote 0.9938 for the released model and describe
+  three class orderings. Both need the corrections above.
+- A `--interpolation` flag on `evaluate.py`, and pinning the filter in
+  `clockmodel.make_dataset`, would make checkpoint comparisons honest.
+
 ## 2026-08-28 — GitHub Pages
 
 `docs/` is published at **https://turhancan97.github.io/analog_clock_prediction/**

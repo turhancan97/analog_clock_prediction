@@ -7,3 +7,5 @@ logs/
 real_data/*
 !real_data/real_manifest.csv
 !real_data/source.txt
+blog/
+kaggle/

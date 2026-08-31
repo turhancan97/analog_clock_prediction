@@ -233,3 +233,23 @@ flagging, the case study, and the browser demo — are written up in
   close the ~0.5-pt gap a plain B0 retrain couldn't? The one loose end from
   the backbone ablation. (`--backbone resnet50v2` is also still broken — a
   code-path bug in `build_model`, not an architecture verdict.)
+
+## License and attribution
+
+Code in this repository is **MIT** licensed — see [`LICENSE`](LICENSE).
+
+The data is not mine and is not covered by that license:
+
+| what | source | license |
+|---|---|---|
+| 14,400 synthetic clock renders + `time-99.68.h5` | [`gpiosenka/time-image-datasetclassification`](https://www.kaggle.com/datasets/gpiosenka/time-image-datasetclassification) (Gerry Piosenka) | CC0 (verified) |
+| 92 real clock photos | [`kongaskristjan/real-clocks`](https://www.kaggle.com/datasets/kongaskristjan/real-clocks) (Kristjan Kongas; photos from pxhere.com) | CC0-1.0 (verified) |
+| 103 real clock photos | [`vctorsuarezvara/real-images-of-analogclocks`](https://www.kaggle.com/datasets/vctorsuarezvara/real-images-of-analogclocks) | **not verified — check the dataset page before reuse** |
+
+Neither the images nor the trained checkpoints are committed here — `data/`,
+`real_data/` (except the manifest) and `models/` are gitignored. `DATASET.md`
+has provenance and re-download steps for all of it.
+
+**A caveat on the third source:** a 2026-08-28 label audit found its `label.csv`
+times unreliable (see `CHANGELOG.md`). If you reuse `real_data/real_manifest.csv`,
+filter on `source == "kongaskristjan"` for trustworthy labels.

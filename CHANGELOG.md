@@ -2,6 +2,61 @@
 
 Newest first. Dates are absolute.
 
+## 2026-08-31 — prepared for a public repo: MIT license, portable Slurm scripts
+
+Audited all 66 tracked files and the full git history before making the repo
+public. **Nothing had to be deleted** — no credentials, tokens or emails
+anywhere; no dataset images or `.keras` checkpoints ever committed (history
+under `real_data/` is only the manifest + `source.txt`); `.git` is 21 MB; every
+figure in `docs/images/` is referenced by a doc or its generating script;
+`notebooks/eda_attention.ipynb` carries no saved outputs and no local paths.
+
+What did need changing was hardcoded personal infrastructure.
+
+### Added
+
+- **`LICENSE`** — MIT, © 2026 Turhan Can Kargın. The repo had no license file,
+  which for a public repo means all rights reserved.
+- **`README.md` "License and attribution"** — MIT for the code, plus a table of
+  the three data sources and their licenses. `gpiosenka` (CC0) and
+  `kongaskristjan` (CC0-1.0) are the two this repo ever verified;
+  **`vctorsuarezvara`'s license was never checked and is marked unverified** —
+  do not restate it as CC0 without looking. Also repeats the label-audit
+  caveat, with the `source == "kongaskristjan"` filter for reusers.
+
+### Changed — Slurm scripts are now portable (all 8)
+
+- Site-specific `#SBATCH` flags (`-p dgxa100`, `--qos=big`, `--exclude=...`) are
+  **removed from the files** and passed at submit time instead, which is what
+  sbatch flags override anyway:
+  `sbatch -p <partition> --qos=<qos> scripts/<file>`. A header comment records
+  the values the archived runs used.
+- A hardcoded absolute `cd <repo path>` → `cd "${SLURM_SUBMIT_DIR:-$(dirname "$0")/..}"`.
+- A hardcoded `PY=<conda prefix>/bin/python3` → `PY="${PY:-python3}"`, and `PYROOT` is now
+  derived (`site.getsitepackages()[0]`) rather than hardcoded. **Verified this
+  resolves to the exact same path on this cluster's interpreter**, so the
+  `LD_LIBRARY_PATH` CUDA-lib workaround behaves identically. All 8 pass
+  `bash -n`.
+- **Submitting now needs the partition/QoS flags** — a bare
+  `sbatch scripts/train_rotation_range.slurm` will use the cluster default
+  partition, not `dgxa100`.
+
+### Changed — paths genericized in docs
+
+`AGENTS.md`, `DATASET.md` and two `CHANGELOG.md` lines now say
+`<your conda prefix>`, `<your dataset path>` and `<repo root>` instead of
+absolute home and shared-storage paths. `dgxa100` is kept where it
+appears as a *hardware* descriptor (DGX A100 node type) — that is reproducibility
+provenance, not a private path.
+
+### Not changed, deliberately
+
+- `docs/demo/model.json` + `examples.json` (~900 KB) duplicate content embedded
+  in `demo.html`, but they are the inputs `build_demo.py` needs to regenerate it.
+- `real_data/real_manifest.csv` — labels and split only, no images, relative
+  paths. It is what makes the real-photo split reproducible.
+- `blog/` and `kaggle/` remain gitignored.
+
 ## 2026-08-30 — brand sheet + brand README removed (logos kept)
 
 This is a research repo, so the pages *explaining* the branding are gone. The
@@ -978,8 +1033,7 @@ before) and rotation augmentation (previously untested). Two runs:
 
 ### Identified — GPU training setup on this cluster
 Two silent-failure gotchas hit back to back when moving `train.py` off CPU
-onto the cluster's GPU nodes (conda env at
-`/shared/results/common/kargin/tck_miniconda3`):
+onto the cluster's GPU nodes (conda env at `<your conda prefix>`):
 1. **TF silently trains on CPU with no error** if the pip-installed
    `nvidia-*-cu12` packages' `.so` files aren't on `LD_LIBRARY_PATH` — it logs
    `Cannot dlopen some GPU libraries` (suppressed by
@@ -1017,8 +1071,9 @@ onto the cluster's GPU nodes (conda env at
   (`gpiosenka/time-image-datasetclassification`) on Kaggle, **CC0 public
   domain**. Matched via the `clocks.csv` header schema, which is that author's
   signature; corroborated by label format, class count, image size and split.
-- `data/` is a **symlink** to `/shared/sets/datasets/vision/analog-clock/data`.
-  Plain `find data` returns nothing through it — use `find -L`.
+- `data/` is a **symlink** to the dataset on shared storage
+  (`<your dataset path>`). Plain `find data` returns nothing through it — use
+  `find -L`.
 - Local copy is 418,698,419 bytes vs Kaggle's reported 402,067,147 (~4% larger),
   probably a version difference.
 - Could **not** verify that `time-99.68.h5` ships with the Kaggle dataset;

@@ -59,11 +59,13 @@ duplicate it here.
 
 ## Environment
 
-- Python is conda at `/shared/results/common/kargin/tck_miniconda3/bin/python3`
-  (3.12.8). TF 2.21 / Keras 3.13 / torch 2.10 are already installed.
-- **The interactive shell is CPU only.** GPU training runs via Slurm on the
-  cluster (`dgxa100`/`rtx4090_batch` partitions) — see
-  `scripts/train_unfrozen_aug.slurm` for a template. A CPU-only run is slow;
+- Python is a conda env at `<your conda prefix>/bin/python3` (3.12.8);
+  the Slurm scripts read it from `$PY`, defaulting to `python3`. TF 2.21 /
+  Keras 3.13 / torch 2.10.
+- **The interactive shell is CPU only.** GPU training runs via Slurm — see
+  `scripts/train_unfrozen_aug.slurm` for a template, and pass your own
+  partition/QoS at submit time (`sbatch -p <partition> --qos=<qos> ...`);
+  the recorded runs used a DGX A100 partition. A CPU-only run is slow;
   budget for it and don't kick one off without asking.
 - **GPU Slurm jobs need two env vars TF won't complain about missing.**
   Without both, training either silently runs on CPU or crashes outright —
@@ -81,7 +83,8 @@ duplicate it here.
 - Git repo as of 2026-08-23 (single initial commit, branch `main`). History
   before that date doesn't exist — the repo went from data-only to working
   code in one uncommitted session; `CHANGELOG.md` is the record of that.
-- **`data/` is a symlink** to `/shared/sets/datasets/vision/analog-clock/data`.
+- **`data/` is a symlink** to the dataset on shared storage
+  (`<your dataset path>`; gitignored, so a fresh clone has no `data/` at all).
   Plain `find data ...` silently returns nothing — always `find -L data ...`.
   Provenance and re-download steps are in `DATASET.md`.
 

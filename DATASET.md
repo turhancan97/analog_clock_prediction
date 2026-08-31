@@ -38,10 +38,10 @@ later.
 `data/` in this repo is a **symlink**, not a directory:
 
 ```
-data -> /shared/sets/datasets/vision/analog-clock/data
+data -> <your dataset path>          # e.g. shared storage, or a local unzip
 ```
 
-It is on shared storage. Nothing below needs running unless that path goes away
+It is on shared storage in the setup these results came from. Nothing below needs running unless that path goes away
 or you're setting up on a new machine. Note the shared copy totals 418,698,419
 bytes against Kaggle's reported 402,067,147 — about 4% larger, most likely a
 dataset version difference. Treat exact byte equality as a non-goal.
@@ -63,7 +63,7 @@ kaggle datasets download -d gpiosenka/time-image-datasetclassification -p /path/
 Then point the repo at it:
 
 ```bash
-cd /home/kargin/Projects/personal/analog_clock_prediction
+cd <repo root>
 rm -f data && ln -s /path/to/dest data
 ```
 
@@ -84,7 +84,7 @@ data/
 ```
 
 ```bash
-cd /home/kargin/Projects/personal/analog_clock_prediction
+cd <repo root>
 for s in train valid test; do
   echo "$s: $(ls data/$s | wc -l) classes, $(find -L data/$s -name '*.jpg' | wc -l) images"
 done
